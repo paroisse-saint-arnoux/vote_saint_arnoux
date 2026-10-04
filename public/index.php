@@ -64,6 +64,7 @@ if ($path === '/deconnexion' && $method === 'POST') {
 
 $me = require_login();
 $canVote = in_array($me['role'], ['votant', 'consultatif'], true);
+$withConsultative = !empty($_GET['consultatifs']); // classement : inclure les membres consultatifs
 
 if ($path === '/') {
     render('home', [
@@ -77,8 +78,15 @@ if ($path === '/') {
 
 if ($path === '/classement') {
     require_results_access();
-    render('ranking', ['me' => $me, 'ranking' => ranking()]);
+    render('ranking', ['me' => $me, 'ranking' => ranking($withConsultative), 'withConsultative' => $withConsultative]);
     exit;
+}
+
+if ($path === '/classement.xlsx') {
+    require_results_access();
+    $table = ranking_table($withConsultative);
+    xlsx_download('classement-' . date('Y-m-d') . ($withConsultative ? '-avec-consultatifs' : '') . '.xlsx', 'Notation', $table,
+        [7, 34, 18, 12, ...array_fill(0, count(criteria()), 18), 20]);
 }
 
 if (preg_match('~^/architecte/(\d+)(/tableau)?$~', $path, $m)) {
@@ -135,7 +143,7 @@ if (preg_match('~^/api/architecte/(\d+)/tableau$~', $path, $m)) {
 
 if ($path === '/api/classement') {
     require_results_access();
-    json_response(ranking());
+    json_response(ranking($withConsultative));
 }
 
 // ---------------------------------------------------------------- Réglages (admin)

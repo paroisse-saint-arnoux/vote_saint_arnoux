@@ -128,24 +128,28 @@ function architect_dashboard(int $architectId): array
     ];
 }
 
-/** Classement final : architectes triés par score officiel décroissant. */
-function ranking(): array
+/**
+ * Classement final : architectes triés par score décroissant.
+ * Score officiel calculé sur les votants ; $withConsultative ajoute les membres consultatifs.
+ */
+function ranking(bool $withConsultative = false): array
 {
+    $roles = $withConsultative ? "'votant', 'consultatif'" : "'votant'";
     $stats = db_all(
         "SELECT s.architect_id, s.criterion, AVG(s.score) AS avg_score
          FROM scores s JOIN members m ON m.id = s.member_id
-         WHERE m.role = 'votant'
+         WHERE m.role IN ({$roles})
          GROUP BY s.architect_id, s.criterion"
     );
     $avg = [];
     foreach ($stats as $r) {
         $avg[$r['architect_id']][(int) $r['criterion']] = (float) $r['avg_score'];
     }
-    // Nombre de votants ayant noté les 6 critères
+    // Nombre de membres pris en compte ayant noté les 6 critères
     $complete = db_all(
         "SELECT s.architect_id, COUNT(*) AS n FROM (
             SELECT s.architect_id, s.member_id FROM scores s JOIN members m ON m.id = s.member_id
-            WHERE m.role = 'votant' GROUP BY s.architect_id, s.member_id HAVING COUNT(*) = ?
+            WHERE m.role IN ({$roles}) GROUP BY s.architect_id, s.member_id HAVING COUNT(*) = ?
          ) s GROUP BY s.architect_id",
         [count(criteria())]
     );
@@ -175,6 +179,41 @@ function ranking(): array
         return $y['total'] <=> $x['total'];
     });
     return $list;
+}
+
+/** Nombre de membres pris en compte dans le classement. */
+function ranking_voters(bool $withConsultative = false): int
+{
+    $roles = $withConsultative ? ['votant', 'consultatif'] : ['votant'];
+    return count(array_filter(get_jury(), fn ($m) => in_array($m['role'], $roles, true)));
+}
+
+/** Classement sous forme de tableau pour l'export Excel : en-tête puis une ligne par architecte. */
+function ranking_table(bool $withConsultative = false): array
+{
+    $voters = ranking_voters($withConsultative);
+    $header = ['Rang', 'Agence', 'Ville', 'Score / 100'];
+    foreach (criteria() as $n => $c) {
+        $header[] = "C{$n} {$c['short']} ({$c['weight']} %)";
+    }
+    $header[] = "Votes complets (sur {$voters})";
+
+    // Score = formule Excel sur les colonnes des critères (E…), mêmes règles que weighted_total() :
+    // moyenne pondérée des critères renseignés, ramenée sur 100.
+    $weights = '{' . implode(',', array_column(criteria(), 'weight')) . '}';
+    $range = fn (int $row) => 'E' . $row . ':' . xlsx_col(3 + count(criteria())) . $row;
+
+    $rows = [$header];
+    $rank = 0;
+    foreach (ranking($withConsultative) as $r) {
+        $row = count($rows) + 1;
+        $score = $r['total'] === null ? null : [
+            'f' => "SUMPRODUCT({$weights},{$range($row)})/SUMPRODUCT({$weights},--({$range($row)}<>\"\"))*20",
+            'v' => weighted_total(array_filter($r['criteria'], fn ($v) => $v !== null)),
+        ];
+        $rows[] = [$r['total'] === null ? '–' : ++$rank, $r['agency'], $r['city'], $score, ...array_values($r['criteria']), $r['complete']];
+    }
+    return $rows;
 }
 
 /** Notes d'un membre pour tous les dossiers : [architect_id => [critère => note]]. */

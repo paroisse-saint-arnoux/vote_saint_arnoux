@@ -42,9 +42,9 @@
         input.addEventListener('input', () => { btn.disabled = input.value.trim() !== input.pattern; });
     });
 
-    // Envoi du formulaire dès qu'une liste déroulante change (ex. tri de la page d'accueil)
-    document.querySelectorAll('[data-autosubmit]').forEach((select) => {
-        select.addEventListener('change', () => select.form.submit());
+    // Envoi du formulaire dès qu'un champ change (tri de la page d'accueil, option du classement)
+    document.querySelectorAll('[data-autosubmit]').forEach((field) => {
+        field.addEventListener('change', () => field.form.submit());
     });
 
     // ------------------------------------------------------------------ Fin de notation
@@ -225,7 +225,7 @@
 
         ranking.tHead.innerHTML = '<tr><th class="rank">Rang</th><th>Agence</th><th class="num">Score / 100</th>'
             + keys.map((k) => `<th class="num" title="${esc(criteria[k].title)}">C${k}<small>${esc(criteria[k].short)} · ${criteria[k].weight} %</small></th>`).join('')
-            + '<th class="num" title="Votants ayant noté les 6 critères">Votes complets</th></tr>';
+            + '<th class="num" title="Membres pris en compte ayant noté les 6 critères">Votes complets</th></tr>';
 
         const render = (rows) => {
             let rank = 0;

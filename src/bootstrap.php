@@ -33,3 +33,4 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/scoring.php';
 require __DIR__ . '/import.php';
 require __DIR__ . '/mailer.php';
+require __DIR__ . '/xlsx.php';

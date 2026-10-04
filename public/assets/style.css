@@ -62,6 +62,9 @@ small { font-size: .8em; font-weight: normal; }
 .section-head p { margin: 0; }
 .section-head.with-sort { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 16px; }
 .section-head.with-sort h1 { grid-column: 1 / -1; }
+.consult-toggle { margin-top: 8px; }
+.consult-toggle label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+.consult-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
 .sort-form label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
 
 /* ------------------------------------------------------------ Composants */

@@ -3,9 +3,9 @@ $pageTitle = 'Accueil';
 $nbCriteria = count(criteria());
 
 // Tri proposé une fois tous les dossiers notés ; les clés (ordre de notation) sont conservées pour la numérotation.
-$sorts = ['notation' => 'Par ordre de notation', 'alpha' => 'Alphabétique', 'score' => 'Score'];
+$sorts = ['score' => 'Par score', 'notation' => 'Par ordre de notation', 'alpha' => 'Par ordre alphabétique'];
 $canSort = $canVote && has_completed_all((int) $me['id']);
-$sort = $canSort && isset($sorts[$_GET['tri'] ?? '']) ? $_GET['tri'] : 'notation';
+$sort = $canSort && isset($sorts[$_GET['tri'] ?? '']) ? $_GET['tri'] : 'score';
 if ($sort === 'alpha') {
     $collator = class_exists(Collator::class) ? new Collator('fr_FR') : null;
     uasort($architects, fn ($x, $y) => $collator

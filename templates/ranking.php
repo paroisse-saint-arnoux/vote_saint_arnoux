@@ -1,15 +1,22 @@
 <?php
 $pageTitle = 'Classement';
-$voters = count(array_filter(get_jury(), fn ($m) => $m['role'] === 'votant'));
+$voters = ranking_voters($withConsultative);
+$query = $withConsultative ? '?consultatifs=1' : '';
 ?>
 <section class="section">
     <div class="section-head">
-        <h1>Classement</h1>
-        <p class="muted">Score pondéré sur 100, calculé sur les <?= $voters ?> membres votants (hors consultatifs). Mise à jour automatique.</p>
+        <h1>Classement <a class="btn small" href="/classement.xlsx<?= $query ?>" download>Exporter en Excel</a></h1>
+        <p class="muted">Score pondéré sur 100, calculé sur les <?= $voters ?> membres
+            <?= $withConsultative ? 'votants et consultatifs' : 'votants (hors consultatifs)' ?>. Mise à jour automatique.</p>
+        <form method="get" action="/classement" class="consult-toggle">
+            <label><input type="checkbox" name="consultatifs" value="1" data-autosubmit<?= $withConsultative ? ' checked' : '' ?>>
+                Inclure les membres consultatifs</label>
+            <noscript><button class="btn small">Appliquer</button></noscript>
+        </form>
     </div>
     <div class="table-wrap">
         <table class="grid ranking" id="ranking"
-               data-src="/api/classement" data-voters="<?= $voters ?>"
+               data-src="/api/classement<?= $query ?>" data-voters="<?= $voters ?>"
                data-criteria='<?= e(json_encode(array_map(fn ($c) => ['short' => $c['short'], 'title' => $c['title'], 'weight' => $c['weight']], criteria()), JSON_UNESCAPED_UNICODE)) ?>'>
             <thead></thead>
             <tbody></tbody>
