@@ -52,7 +52,7 @@ services:
       USER_con1: root
       PASSWORD_con1: root
       PORT_con1: 3306
-      ENGINE_con1: mysql@dborm
+      ENGINE_con1: mysql@dbgate-plugin-mysql
     depends_on:
       - db
 

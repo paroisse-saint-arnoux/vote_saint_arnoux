@@ -20,10 +20,8 @@
         </button>
         <nav class="topnav" id="topnav">
             <a href="/">Accueil</a>
-            <?php if ($me['is_admin']): ?>
-                <a href="/classement">Classement</a>
-                <a href="/reglages">Réglages</a>
-            <?php endif; ?>
+            <?php if (can_view_results($me)): ?><a href="/classement">Classement</a><?php endif; ?>
+            <?php if ($me['is_admin']): ?><a href="/reglages">Réglages</a><?php endif; ?>
             <span class="who" title="<?= e($me['email']) ?>"><?= e($me['name']) ?>
                 <em class="role role-<?= e($me['role']) ?>"><?= e(role_label($me['role'])) ?></em></span>
             <form method="post" action="/deconnexion"><?= csrf_field() ?><button class="linkish">Déconnexion</button></form>

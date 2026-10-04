@@ -76,7 +76,7 @@ if ($path === '/') {
 }
 
 if ($path === '/classement') {
-    require_admin();
+    require_results_access();
     render('ranking', ['me' => $me, 'ranking' => ranking()]);
     exit;
 }
@@ -84,7 +84,7 @@ if ($path === '/classement') {
 if (preg_match('~^/architecte/(\d+)(/tableau)?$~', $path, $m)) {
     $architect = get_architect((int) $m[1]) ?? not_found();
     if (!empty($m[2])) {
-        require_admin();
+        require_results_access();
         render('dashboard', ['me' => $me, 'architect' => $architect, 'data' => architect_dashboard((int) $architect['id'])]);
     } else {
         $ids = array_column(get_evaluable_architects(), 'id');
@@ -117,18 +117,24 @@ if ($path === '/api/score' && $method === 'POST') {
         || ($score !== null && (!is_int($score) || $score < 0 || $score > 5))) {
         json_response(['error' => 'Requête invalide'], 400);
     }
+    $wasComplete = has_completed_all((int) $me['id']);
     save_score((int) $me['id'], $architectId, $criterion, $score);
-    json_response(['ok' => true, 'total' => round_or_null(weighted_total(member_scores((int) $me['id'], $architectId)), 1)]);
+    json_response([
+        'ok'        => true,
+        'total'     => round_or_null(weighted_total(member_scores((int) $me['id'], $architectId)), 1),
+        // Vrai uniquement pour la note qui termine la notation de tous les dossiers
+        'completed' => !$wasComplete && has_completed_all((int) $me['id']),
+    ]);
 }
 
 if (preg_match('~^/api/architecte/(\d+)/tableau$~', $path, $m)) {
-    require_admin();
+    require_results_access();
     get_architect((int) $m[1]) ?? json_response(['error' => 'Introuvable'], 404);
     json_response(architect_dashboard((int) $m[1]));
 }
 
 if ($path === '/api/classement') {
-    require_admin();
+    require_results_access();
     json_response(ranking());
 }
 

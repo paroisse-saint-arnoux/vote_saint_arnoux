@@ -50,6 +50,28 @@ function require_admin(): array
     return $member;
 }
 
+/** Accès au classement et aux tableaux de bord : administrateurs, et jurés ayant noté 100 % des dossiers. */
+function can_view_results(array $member): bool
+{
+    static $cache = [];
+    return $cache[$member['id']] ??= $member['is_admin']
+        || (in_array($member['role'], ['votant', 'consultatif'], true) && has_completed_all((int) $member['id']));
+}
+
+function require_results_access(): array
+{
+    $member = require_login();
+    if (!can_view_results($member)) {
+        if (str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/api/')) {
+            json_response(['error' => 'Accessible une fois tous les dossiers notés'], 403);
+        }
+        http_response_code(403);
+        render('message', ['title' => 'Accès réservé', 'message' => 'Le classement et les tableaux de bord sont accessibles une fois tous les dossiers entièrement notés.']);
+        exit;
+    }
+    return $member;
+}
+
 /** Crée un jeton de connexion et renvoie l'URL du lien magique. */
 function create_login_link(int $memberId, int $ttlSeconds): string
 {

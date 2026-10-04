@@ -23,7 +23,7 @@
         <?php else: ?>
             <span class="btn big disabled" title="Lien à renseigner dans les réglages"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2.2h8.4A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" fill="currentColor"/></svg> Dossier non disponible</span>
         <?php endif; ?>
-        <?php if ($me['is_admin']): ?><a class="btn" href="/architecte/<?= $architect['id'] ?>/tableau">Tableau de bord</a><?php endif; ?>
+        <?php if (can_view_results($me)): ?><a class="btn" href="/architecte/<?= $architect['id'] ?>/tableau">Tableau de bord</a><?php endif; ?>
     </div>
 </section>
 

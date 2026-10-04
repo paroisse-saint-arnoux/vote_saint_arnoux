@@ -60,6 +60,9 @@ small { font-size: .8em; font-weight: normal; }
 .section { margin-bottom: 40px; }
 .section-head { margin-bottom: 12px; }
 .section-head p { margin: 0; }
+.section-head.with-sort { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 16px; }
+.section-head.with-sort h1 { grid-column: 1 / -1; }
+.sort-form label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
 
 /* ------------------------------------------------------------ Composants */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 24px; }
@@ -165,6 +168,9 @@ td.changed { animation: changed 1.6s ease-out; }
 .architect-item .info { text-decoration: none; color: var(--ink); display: grid; }
 .architect-item .info span { font-size: .88rem; }
 .architect-item .actions { display: flex; gap: 6px; }
+.architect-item:has(.my-score) { grid-template-columns: 40px 1fr auto auto auto; }
+.architect-item .my-score { min-width: 5.5em; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.architect-item .my-score small { color: var(--muted); font-weight: 400; }
 .architect-item.state-done { border-left: 4px solid var(--ok); }
 .architect-item.state-partial { border-left: 4px solid var(--warn); }
 .progress { display: flex; gap: 3px; }
@@ -261,7 +267,17 @@ fieldset[disabled] .likert .opt { cursor: default; opacity: .75; }
 .import-box .muted { flex-basis: 100%; font-size: .85rem; order: 1; }
 
 /* ------------------------------------------------------------ Mobile */
+/* ------------------------------------------------------------ Fin de notation */
+.congrats { border: none; border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px 32px; max-width: 440px; text-align: center; }
+.congrats::backdrop { background: rgba(0, 0, 0, .35); }
+.congrats h2 { margin: 8px 0; color: var(--accent); }
+.congrats-emoji { font-size: 3rem; line-height: 1; }
+.congrats-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+.confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2147483647; }
+
 @media (max-width: 720px) {
+    .section-head.with-sort { grid-template-columns: 1fr; }
+    .sort-form { margin-top: 10px; }
     .page { padding: 14px; }
     /* En-tête non collant et menu replié : la barre de score occupe seule le haut de l'écran */
     .topbar { padding: 8px 14px; position: static; }
@@ -274,8 +290,10 @@ fieldset[disabled] .likert .opt { cursor: default; opacity: .75; }
     .anchors { grid-template-columns: repeat(6, 1fr); font-size: .8rem; }
     .anchors .hint-low { grid-column: 1 / 4; }
     .anchors .hint-high { grid-column: 4 / 7; }
-    .architect-item { grid-template-columns: 28px 1fr; }
-    .architect-item .progress, .architect-item .actions { grid-column: 2; }
+    .architect-item, .architect-item:has(.my-score) { grid-template-columns: 28px 1fr; }
+    .architect-item .progress, .architect-item .my-score, .architect-item .actions { grid-column: 2; }
+    .architect-item .my-score { text-align: left; }
+    .architect-item .my-score:empty { display: none; }
     .weight { float: none; margin-left: 6px; }
     .scoring-summary { top: 0; }
     .scoring-summary.stuck .summary-score > .muted:first-child { display: none; }

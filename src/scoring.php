@@ -177,7 +177,6 @@ function ranking(): array
     return $list;
 }
 
-/** Nombre de critères notés par un membre, par architecte. */
 /** Notes d'un membre pour tous les dossiers : [architect_id => [critère => note]]. */
 function member_progress(int $memberId): array
 {
@@ -186,4 +185,21 @@ function member_progress(int $memberId): array
         $progress[(int) $r['architect_id']][(int) $r['criterion']] = (int) $r['score'];
     }
     return $progress;
+}
+
+/** Vrai si le membre a noté tous les critères de tous les dossiers proposés au jury. */
+function has_completed_all(int $memberId): bool
+{
+    $architects = get_evaluable_architects();
+    if (!$architects) {
+        return false;
+    }
+    $progress = member_progress($memberId);
+    $nbCriteria = count(criteria());
+    foreach ($architects as $a) {
+        if (count($progress[(int) $a['id']] ?? []) < $nbCriteria) {
+            return false;
+        }
+    }
+    return true;
 }

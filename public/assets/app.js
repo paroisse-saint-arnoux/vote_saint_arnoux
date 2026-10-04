@@ -42,6 +42,72 @@
         input.addEventListener('input', () => { btn.disabled = input.value.trim() !== input.pattern; });
     });
 
+    // Envoi du formulaire dès qu'une liste déroulante change (ex. tri de la page d'accueil)
+    document.querySelectorAll('[data-autosubmit]').forEach((select) => {
+        select.addEventListener('change', () => select.form.submit());
+    });
+
+    // ------------------------------------------------------------------ Fin de notation
+
+    /** Message de félicitations + confettis quand le dernier critère du dernier dossier est noté. */
+    function celebrate() {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'congrats';
+        dialog.innerHTML = '<div class="congrats-emoji" aria-hidden="true">🎉</div>'
+            + '<h2>Bravo, vous avez tout noté !</h2>'
+            + '<p>Merci pour votre travail : tous les dossiers sont évalués. '
+            + 'Le classement et les tableaux de bord de chaque architecte vous sont désormais accessibles.</p>'
+            + '<div class="congrats-actions"><a class="btn primary" href="/classement">Voir le classement</a>'
+            + '<button type="button" class="btn">Fermer</button></div>';
+        dialog.querySelector('button').addEventListener('click', () => dialog.close());
+        dialog.addEventListener('close', () => dialog.remove());
+        document.body.appendChild(dialog);
+        dialog.showModal();
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) confetti(dialog);
+    }
+
+    /** Confettis plein écran ; le canevas est placé dans la modale pour passer au-dessus de son fond. */
+    function confetti(container) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'confetti';
+        container.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.width = innerWidth * dpr, H = canvas.height = innerHeight * dpr;
+        const colors = ['#7a2e3a', '#c8453b', '#e7a93b', '#6ea853', '#2f8a57', '#3b6fc8', '#d9a6b0'];
+        const pieces = Array.from({ length: 180 }, (_, i) => {
+            const fromLeft = i % 2 === 0;
+            const angle = (fromLeft ? -60 : -120) * Math.PI / 180 + (Math.random() - .5) * .9;
+            const speed = (12 + Math.random() * 14) * dpr;
+            return {
+                x: fromLeft ? 0 : W, y: H * .8,
+                vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                w: (6 + Math.random() * 6) * dpr, h: (8 + Math.random() * 8) * dpr,
+                rot: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+                color: colors[i % colors.length],
+            };
+        });
+        const start = performance.now();
+        const frame = (t) => {
+            ctx.clearRect(0, 0, W, H);
+            const fade = Math.max(0, 1 - (t - start - 3500) / 1500);
+            ctx.globalAlpha = fade;
+            pieces.forEach((p) => {
+                p.vy += .35 * dpr; p.vx *= .99; p.vy *= .99;
+                p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.scale(1, Math.cos(p.rot * 3));
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+            });
+            if (fade > 0) requestAnimationFrame(frame); else canvas.remove();
+        };
+        requestAnimationFrame(frame);
+    }
+
     /** Rafraîchit périodiquement des données JSON (en pause quand l'onglet est masqué). */
     function poll(url, interval, onData, onStatus) {
         let timer = null;
@@ -130,6 +196,7 @@
                 fs.classList.remove('flash-ok');
                 void fs.offsetWidth;
                 fs.classList.add('flash-ok');
+                if (data.completed) celebrate();
             } catch (e) {
                 pending--;
                 setState('⚠ Non enregistré : ' + e.message, 'error');
