@@ -5,7 +5,7 @@
 // - Score pondéré sur 100 = Σ(poids × note) / Σ(poids des critères notés) × 20.
 //   Les critères non notés sont donc exclus et les poids restants renormalisés.
 // - Score officiel d'un architecte : calculé à partir de la moyenne de chaque critère
-//   sur les seuls membres « votant ».
+//   sur les seuls membres « votant » (dans le classement : ceux ayant noté tous les dossiers).
 // - Écarts types : calculés sur tous les membres du jury (votants + consultatifs).
 
 /** @param array<int, float|int|null> $scores critère => note */
@@ -80,6 +80,7 @@ function architect_dashboard(int $architectId): array
     $rows = [];
     $official = [];   // critère => notes des votants
     $all = [];        // critère => notes de tout le jury
+    $consult = [];    // critère => notes des consultatifs
     $totalsAll = [];  // scores totaux de chaque juré (pour l'écart type du total)
     foreach ($jury as $m) {
         $scores = $byMember[$m['id']] ?? [];
@@ -88,6 +89,8 @@ function architect_dashboard(int $architectId): array
             $all[$n][] = $s;
             if ($m['role'] === 'votant') {
                 $official[$n][] = $s;
+            } else {
+                $consult[$n][] = $s;
             }
         }
         if ($total !== null) {
@@ -123,34 +126,73 @@ function architect_dashboard(int $architectId): array
         'rows'     => $rows,
         'official' => $summary($official),
         'all'      => $summary($all),
+        'consultative' => $summary($consult),
         'stddev'   => ['criteria' => $sd, 'total' => round_or_null(stddev($totalsAll), 1)],
         'voters'   => count(array_filter($jury, fn ($m) => $m['role'] === 'votant')),
     ];
 }
 
+/** Ids des membres ayant noté tous les critères de tous les dossiers proposés au jury. */
+function completed_member_ids(): array
+{
+    $architects = get_evaluable_architects();
+    if (!$architects) {
+        return [];
+    }
+    $rows = db_all(
+        "SELECT s.member_id FROM scores s JOIN architects a ON a.id = s.architect_id
+         WHERE a.drive_url <> '' AND s.criterion IN (" . implode(',', array_keys(criteria())) . ")
+         GROUP BY s.member_id HAVING COUNT(*) = ?",
+        [count($architects) * count(criteria())]
+    );
+    return array_map('intval', array_column($rows, 'member_id'));
+}
+
+/**
+ * Membres pris en compte dans le classement : votants (et consultatifs si demandé)
+ * ayant noté tous les dossiers.
+ */
+function ranking_members(bool $withConsultative = false): array
+{
+    $roles = $withConsultative ? ['votant', 'consultatif'] : ['votant'];
+    $completed = completed_member_ids();
+    return array_values(array_filter(get_jury(), fn ($m) => in_array($m['role'], $roles, true)
+        && in_array((int) $m['id'], $completed, true)));
+}
+
+/** Moyenne de chaque critère sur les membres donnés : [architect_id => [critère => moyenne]]. */
+function average_scores(array $memberIds): array
+{
+    if (!$memberIds) {
+        return [];
+    }
+    $avg = [];
+    $rows = db_all(
+        'SELECT architect_id, criterion, AVG(score) AS avg_score FROM scores
+         WHERE member_id IN (' . implode(',', array_map('intval', $memberIds)) . ')
+         GROUP BY architect_id, criterion'
+    );
+    foreach ($rows as $r) {
+        $avg[$r['architect_id']][(int) $r['criterion']] = (float) $r['avg_score'];
+    }
+    return $avg;
+}
+
 /**
  * Classement final : architectes triés par score décroissant.
- * Score officiel calculé sur les votants ; $withConsultative ajoute les membres consultatifs.
+ * Score officiel calculé sur les votants ayant tout noté ; $withConsultative ajoute les consultatifs ayant tout noté.
  */
 function ranking(bool $withConsultative = false): array
 {
-    $roles = $withConsultative ? "'votant', 'consultatif'" : "'votant'";
-    $stats = db_all(
-        "SELECT s.architect_id, s.criterion, AVG(s.score) AS avg_score
-         FROM scores s JOIN members m ON m.id = s.member_id
-         WHERE m.role IN ({$roles})
-         GROUP BY s.architect_id, s.criterion"
-    );
-    $avg = [];
-    foreach ($stats as $r) {
-        $avg[$r['architect_id']][(int) $r['criterion']] = (float) $r['avg_score'];
-    }
+    $ids = array_column(ranking_members($withConsultative), 'id');
+    $avg = average_scores($ids);
     // Nombre de membres pris en compte ayant noté les 6 critères
-    $complete = db_all(
-        "SELECT s.architect_id, COUNT(*) AS n FROM (
-            SELECT s.architect_id, s.member_id FROM scores s JOIN members m ON m.id = s.member_id
-            WHERE m.role IN ({$roles}) GROUP BY s.architect_id, s.member_id HAVING COUNT(*) = ?
-         ) s GROUP BY s.architect_id",
+    $complete = !$ids ? [] : db_all(
+        'SELECT architect_id, COUNT(*) AS n FROM (
+            SELECT architect_id, member_id FROM scores
+            WHERE member_id IN (' . implode(',', array_map('intval', $ids)) . ')
+            GROUP BY architect_id, member_id HAVING COUNT(*) = ?
+         ) s GROUP BY architect_id',
         [count(criteria())]
     );
     $complete = array_column($complete, 'n', 'architect_id');
@@ -184,8 +226,77 @@ function ranking(bool $withConsultative = false): array
 /** Nombre de membres pris en compte dans le classement. */
 function ranking_voters(bool $withConsultative = false): int
 {
-    $roles = $withConsultative ? ['votant', 'consultatif'] : ['votant'];
-    return count(array_filter(get_jury(), fn ($m) => in_array($m['role'], $roles, true)));
+    return count(ranking_members($withConsultative));
+}
+
+/** Rang de chaque dossier d'après son score (ex aequo : même rang) ; null si non noté. */
+function rank_by(array $totals): array
+{
+    $scored = array_filter($totals, fn ($t) => $t !== null);
+    arsort($scored);
+    $ranks = array_fill_keys(array_keys($totals), null);
+    $i = 0;
+    $rank = 0;
+    $prev = null;
+    foreach ($scored as $id => $t) {
+        $i++;
+        if ($t !== $prev) {
+            $rank = $i;
+            $prev = $t;
+        }
+        $ranks[$id] = $rank;
+    }
+    return $ranks;
+}
+
+/**
+ * Vue par personne : rang de chaque dossier pour le jury votant et le jury consultatif
+ * (membres ayant tout noté), et pour chaque membre du jury.
+ */
+function person_view(): array
+{
+    $architects = get_evaluable_architects();
+    $jury = get_jury();
+
+    $columns = [
+        'v' => ['label' => 'Jury votant', 'role' => 'votant', 'group' => true,
+                'avg' => average_scores(array_column(ranking_members(), 'id'))],
+        'c' => ['label' => 'Jury consultatif', 'role' => 'consultatif', 'group' => true,
+                'avg' => average_scores(array_column(array_filter(ranking_members(true), fn ($m) => $m['role'] === 'consultatif'), 'id'))],
+    ];
+    $byMember = [];
+    foreach (db_all('SELECT member_id, architect_id, criterion, score FROM scores') as $r) {
+        $byMember[$r['member_id']][$r['architect_id']][(int) $r['criterion']] = (int) $r['score'];
+    }
+    foreach ($jury as $m) {
+        if (empty($byMember[$m['id']])) {
+            continue; // membre n'ayant encore rien noté
+        }
+        $columns['m' . $m['id']] = ['label' => $m['name'], 'role' => $m['role'], 'group' => false,
+                                    'avg' => $byMember[$m['id']] ?? []];
+    }
+
+    $cells = [];
+    foreach ($columns as $key => $col) {
+        $totals = [];
+        foreach ($architects as $a) {
+            $totals[$a['id']] = round_or_null(weighted_total($col['avg'][$a['id']] ?? []), 1);
+        }
+        foreach (rank_by($totals) as $id => $rank) {
+            $cells[$id][$key] = ['rank' => $rank, 'score' => $totals[$id]];
+        }
+    }
+
+    return [
+        'columns' => array_map(fn ($key, $col) => ['key' => $key, 'label' => $col['label'], 'role' => $col['role'], 'group' => $col['group']],
+                               array_keys($columns), $columns),
+        'rows'    => array_map(fn ($a) => ['id' => (int) $a['id'], 'agency' => $a['agency'], 'city' => $a['city'],
+                                           'cells' => $cells[$a['id']],
+                                           // nombre de votants ayant ce dossier dans leur top 10
+                                           'top10' => count(array_filter(array_keys($columns), fn ($key) => !$columns[$key]['group']
+                                               && $columns[$key]['role'] === 'votant'
+                                               && ($cells[$a['id']][$key]['rank'] ?? 11) <= 10))], $architects),
+    ];
 }
 
 /** Classement sous forme de tableau pour l'export Excel : en-tête puis une ligne par architecte. */

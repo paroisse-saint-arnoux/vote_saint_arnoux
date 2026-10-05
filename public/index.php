@@ -82,6 +82,12 @@ if ($path === '/classement') {
     exit;
 }
 
+if ($path === '/vue-par-personne') {
+    require_results_access();
+    render('persons', ['me' => $me, 'data' => person_view()]);
+    exit;
+}
+
 if ($path === '/classement.xlsx') {
     require_results_access();
     $table = ranking_table($withConsultative);
@@ -139,6 +145,11 @@ if (preg_match('~^/api/architecte/(\d+)/tableau$~', $path, $m)) {
     require_results_access();
     get_architect((int) $m[1]) ?? json_response(['error' => 'Introuvable'], 404);
     json_response(architect_dashboard((int) $m[1]));
+}
+
+if ($path === '/api/vue-par-personne') {
+    require_results_access();
+    json_response(person_view());
 }
 
 if ($path === '/api/classement') {

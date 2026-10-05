@@ -7,7 +7,7 @@ $query = $withConsultative ? '?consultatifs=1' : '';
     <div class="section-head">
         <h1>Classement <a class="btn small" href="/classement.xlsx<?= $query ?>" download>Exporter en Excel</a></h1>
         <p class="muted">Score pondéré sur 100, calculé sur les <?= $voters ?> membres
-            <?= $withConsultative ? 'votants et consultatifs' : 'votants (hors consultatifs)' ?>. Mise à jour automatique.</p>
+            <?= $withConsultative ? 'votants et consultatifs' : 'votants (hors consultatifs)' ?> ayant noté tous les dossiers. Mise à jour automatique.</p>
         <form method="get" action="/classement" class="consult-toggle">
             <label><input type="checkbox" name="consultatifs" value="1" data-autosubmit<?= $withConsultative ? ' checked' : '' ?>>
                 Inclure les membres consultatifs</label>

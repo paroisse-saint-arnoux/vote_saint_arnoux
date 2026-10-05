@@ -118,6 +118,21 @@ table.grid { width: 100%; border-collapse: collapse; }
 .bar { display: inline-block; width: 90px; height: 8px; background: #efebe2; border-radius: 99px; overflow: hidden; vertical-align: middle; }
 .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--accent)); border-radius: 99px; }
 
+/* vue par personne */
+table.grid.persons { table-layout: fixed; min-width: 720px; }
+.persons th, .persons td { padding: 7px 4px; }
+.persons thead th { white-space: normal; overflow-wrap: anywhere; font-size: .75rem; line-height: 1.25; text-align: center; vertical-align: bottom; }
+.persons thead th:first-child { width: 220px; text-align: left; padding-left: 12px; }
+.persons tbody td:first-child { padding-left: 12px; line-height: 1.3; }
+.persons tbody td:first-child small { display: block; }
+.persons th.sortable { cursor: pointer; user-select: none; }
+.persons th.sortable:hover { color: var(--ink); }
+.persons th[aria-sort="ascending"], .persons th[aria-sort="descending"] { color: var(--accent); }
+.persons .sort-arrow { display: inline-block; width: 1em; font-size: .65rem; margin-left: 1px; }
+.persons th.group b { color: var(--ink); }
+.persons td.group { font-weight: 700; background: #faf8f3; }
+.persons td.top10 { background: #e6f3ea; color: #1e5e39; font-weight: 700; }
+
 /* cartes de chaleur pour les moyennes */
 .heat-0 { background: color-mix(in srgb, var(--s0) 16%, white); }
 .heat-1 { background: color-mix(in srgb, var(--s1) 16%, white); }

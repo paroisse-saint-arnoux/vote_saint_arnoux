@@ -252,6 +252,63 @@
         poll(ranking.dataset.src, 10000, render);
     }
 
+    // ------------------------------------------------------------------ Vue par personne
+
+    const persons = $('#persons');
+    if (persons) {
+        let data = JSON.parse($('#persons-data').textContent);
+        let sort = { key: 'v', dir: 1 }; // dir : 1 = croissant, -1 = décroissant
+
+        const compare = (a, b) => {
+            if (sort.key === 'agency') return sort.dir * a.agency.localeCompare(b.agency, 'fr');
+            if (sort.key === 'top10') return sort.dir * (a.top10 - b.top10) || a.agency.localeCompare(b.agency, 'fr');
+            const ra = a.cells[sort.key].rank, rb = b.cells[sort.key].rank;
+            if (ra === rb) return a.agency.localeCompare(b.agency, 'fr');
+            if (ra === null) return 1; // dossiers non notés toujours en bas
+            if (rb === null) return -1;
+            return sort.dir * (ra - rb);
+        };
+
+        const th = (key, label, cls = '') => {
+            const active = sort.key === key;
+            return `<th class="sortable ${cls}" data-sort="${key}" aria-sort="${active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}">`
+                + `${label}<span class="sort-arrow">${active ? (sort.dir === 1 ? '▲' : '▼') : ''}</span></th>`;
+        };
+
+        const render = () => {
+            persons.tHead.innerHTML = '<tr>' + th('agency', 'Agence')
+                + th('top10', '<b>Top 10 votants</b>', 'num group')
+                + data.columns.map((c) => th(c.key, c.group ? `<b>${esc(c.label)}</b>`
+                    : esc(c.label) + (c.role === 'consultatif' ? '<small>consultatif</small>' : ''), 'num' + (c.group ? ' group' : ''))).join('')
+                + '</tr>';
+            diffRender(persons, [...data.rows].sort(compare).map((r) => `<tr class="clickable" data-href="/architecte/${r.id}/tableau">`
+                + `<td><a href="/architecte/${r.id}/tableau">${esc(r.agency)}</a><small class="muted"> ${esc(r.city || '')}</small></td>`
+                + cell(`${r.id}-top10`, r.top10, 'num group', r.top10 || '<span class="muted">0</span>')
+                + data.columns.map((c) => {
+                    const { rank, score } = r.cells[c.key];
+                    return cell(`${r.id}-${c.key}`, rank, 'num' + (c.group ? ' group' : '') + (rank !== null && rank <= 10 ? ' top10' : ''),
+                        rank === null ? '<span class="muted">–</span>' : `<span title="${fmt(score)} / 100">${rank}</span>`);
+                }).join('')
+                + '</tr>').join(''));
+        };
+
+        persons.addEventListener('click', (ev) => {
+            const head = ev.target.closest('th[data-sort]');
+            if (head) {
+                // Premier clic : rangs croissants, mais nombre de top 10 décroissant
+                sort = head.dataset.sort === sort.key ? { key: sort.key, dir: -sort.dir }
+                    : { key: head.dataset.sort, dir: head.dataset.sort === 'top10' ? -1 : 1 };
+                render();
+                return;
+            }
+            const tr = ev.target.closest('tr[data-href]');
+            if (tr && !ev.target.closest('a')) window.location.href = tr.dataset.href;
+        });
+
+        render();
+        poll(persons.dataset.src, 10000, (d) => { data = d; render(); });
+    }
+
     // ------------------------------------------------------------------ Tableau de bord
 
     const dashboard = $('#dashboard');
@@ -279,6 +336,7 @@
 
             let html = summaryRow('Moyenne des votants <small>score officiel</small>', 'summary official', 'o', d.official, 2)
                 + summaryRow('Moyenne du jury <small>votants + consultatifs</small>', 'summary', 'a', d.all, 2)
+                + (d.rows.some((r) => r.role === 'consultatif') ? summaryRow('Moyenne des consultatifs', 'summary consult', 'c', d.consultative, 2) : '')
                 + '<tr class="summary stddev"><th>Écart type <small>votants + consultatifs</small></th>'
                 + cell('sd-t', d.stddev.total, 'num ' + sdClass(d.stddev.total, 20), fmt(d.stddev.total))
                 + keys.map((k) => cell(`sd-${k}`, d.stddev.criteria[k], 'num ' + sdClass(d.stddev.criteria[k]), fmt(d.stddev.criteria[k], 2))).join('')
