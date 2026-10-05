@@ -258,6 +258,7 @@
     if (persons) {
         let data = JSON.parse($('#persons-data').textContent);
         let sort = { key: 'v', dir: 1 }; // dir : 1 = croissant, -1 = décroissant
+        const showScores = $('#persons-scores');
 
         const compare = (a, b) => {
             if (sort.key === 'agency') return sort.dir * a.agency.localeCompare(b.agency, 'fr');
@@ -269,10 +270,19 @@
             return sort.dir * (ra - rb);
         };
 
+        // Petits carrés de couleur des 6 critères, comme sur la page d'accueil (moyennes arrondies pour les jurys)
+        const squares = (criteria) => '<span class="progress">' + Object.entries(data.criteria).map(([k, short]) => {
+            const v = criteria[k];
+            return v === null ? `<i title="C${k} ${esc(short)} : non évalué"></i>`
+                : `<i class="s${Math.round(v)}" title="C${k} ${esc(short)} : ${fmt(v, Number.isInteger(v) ? 0 : 2)} / 5"></i>`;
+        }).join('') + '</span>';
+
         const th = (key, label, cls = '') => {
             const active = sort.key === key;
+            // En mode score, un tri par rang croissant correspond à des scores décroissants
+            const up = (sort.dir === 1) !== (showScores.checked && !['agency', 'top10'].includes(key));
             return `<th class="sortable ${cls}" data-sort="${key}" aria-sort="${active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}">`
-                + `${label}<span class="sort-arrow">${active ? (sort.dir === 1 ? '▲' : '▼') : ''}</span></th>`;
+                + `${label}<span class="sort-arrow">${active ? (up ? '▲' : '▼') : ''}</span></th>`;
         };
 
         const render = () => {
@@ -285,9 +295,11 @@
                 + `<td><a href="/architecte/${r.id}/tableau">${esc(r.agency)}</a><small class="muted"> ${esc(r.city || '')}</small></td>`
                 + cell(`${r.id}-top10`, r.top10, 'num group', r.top10 || '<span class="muted">0</span>')
                 + data.columns.map((c) => {
-                    const { rank, score } = r.cells[c.key];
+                    const { rank, score, criteria } = r.cells[c.key];
                     return cell(`${r.id}-${c.key}`, rank, 'num' + (c.group ? ' group' : '') + (rank !== null && rank <= 10 ? ' top10' : ''),
-                        rank === null ? '<span class="muted">–</span>' : `<span title="${fmt(score)} / 100">${rank}</span>`);
+                        rank === null ? '<span class="muted">–</span>'
+                            : (showScores.checked ? `<span title="Rang ${rank}">${fmt(score)}</span>` + squares(criteria)
+                                : `<span title="${fmt(score)} / 100">${rank}</span>`));
                 }).join('')
                 + '</tr>').join(''));
         };
@@ -305,6 +317,7 @@
             if (tr && !ev.target.closest('a')) window.location.href = tr.dataset.href;
         });
 
+        showScores.addEventListener('change', render);
         render();
         poll(persons.dataset.src, 10000, (d) => { data = d; render(); });
     }

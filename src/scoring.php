@@ -283,11 +283,16 @@ function person_view(): array
             $totals[$a['id']] = round_or_null(weighted_total($col['avg'][$a['id']] ?? []), 1);
         }
         foreach (rank_by($totals) as $id => $rank) {
-            $cells[$id][$key] = ['rank' => $rank, 'score' => $totals[$id]];
+            $crit = [];
+            foreach (criteria() as $n => $c) {
+                $crit[$n] = round_or_null($col['avg'][$id][$n] ?? null);
+            }
+            $cells[$id][$key] = ['rank' => $rank, 'score' => $totals[$id], 'criteria' => $crit];
         }
     }
 
     return [
+        'criteria' => array_map(fn ($c) => $c['short'], criteria()),
         'columns' => array_map(fn ($key, $col) => ['key' => $key, 'label' => $col['label'], 'role' => $col['role'], 'group' => $col['group']],
                                array_keys($columns), $columns),
         'rows'    => array_map(fn ($a) => ['id' => (int) $a['id'], 'agency' => $a['agency'], 'city' => $a['city'],

@@ -131,6 +131,8 @@ table.grid.persons { table-layout: fixed; min-width: 720px; }
 .persons .sort-arrow { display: inline-block; width: 1em; font-size: .65rem; margin-left: 1px; }
 .persons th.group b { color: var(--ink); }
 .persons td.group { font-weight: 700; background: #faf8f3; }
+.persons .progress { justify-content: center; gap: 2px; margin-top: 3px; }
+.persons .progress i { width: 8px; height: 8px; border-radius: 2px; }
 .persons td.top10 { background: #e6f3ea; color: #1e5e39; font-weight: 700; }
 
 /* cartes de chaleur pour les moyennes */
