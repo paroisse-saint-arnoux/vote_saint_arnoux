@@ -280,8 +280,8 @@ fieldset[disabled] .likert .opt { cursor: default; opacity: .75; }
 
 /* ------------------------------------------------------------ Réglages */
 .form-grid td { padding: 6px 8px; }
-.form-grid input, .form-grid select { padding: 6px 8px; font-size: .9rem; min-width: 110px; }
-.form-grid input.wide { min-width: 260px; }
+.form-grid input, .form-grid select { padding: 6px 8px; font-size: .9rem; min-width: 127px; }
+.form-grid input.wide { min-width: 150px; }
 .form-grid select.check-select { min-width: 0; }
 .form-grid input[type=checkbox] { width: 18px; height: 18px; min-width: 0; }
 .form-grid form.inline { display: flex; gap: 4px; margin: 0; }
