@@ -238,10 +238,10 @@
             + '<th class="num" title="Membres pris en compte ayant noté les 6 critères">Votes complets</th>' + checkHeads(checks) + '</tr>';
 
         const render = (rows) => {
-            let rank = 0;
-            diffRender(ranking, rows.map((r) => {
+            let rank = 0, prev = null;
+            diffRender(ranking, rows.map((r, i) => {
                 const ranked = r.total !== null;
-                if (ranked) rank++;
+                if (ranked && r.total !== prev) { rank = i + 1; prev = r.total; } // ex aequo : même rang (1, 1, 3…)
                 return `<tr class="clickable ${ranked ? '' : 'unranked'}${alertClass(r.checks)}" data-href="/architecte/${r.id}/tableau">`
                     + `<td class="rank">${ranked ? rank : '–'}</td>`
                     + `<td><a href="/architecte/${r.id}/tableau">${esc(r.agency)}</a><small class="muted"> ${esc(r.city || '')}</small></td>`

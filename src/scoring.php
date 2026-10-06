@@ -198,7 +198,7 @@ function ranking(bool $withConsultative = false): array
     $complete = array_column($complete, 'n', 'architect_id');
 
     $list = [];
-    foreach (get_architects() as $a) {
+    foreach (get_evaluable_architects() as $a) { // dossiers sans lien Drive exclus
         $crit = [];
         foreach (criteria() as $n => $c) {
             $crit[$n] = round_or_null($avg[$a['id']][$n] ?? null);
@@ -324,13 +324,18 @@ function ranking_table(bool $withConsultative = false): array
 
     $rows = [$header];
     $rank = 0;
-    foreach (ranking($withConsultative) as $r) {
+    $prev = null;
+    foreach (ranking($withConsultative) as $i => $r) {
+        if ($r['total'] !== null && $r['total'] !== $prev) { // ex aequo : même rang
+            $rank = $i + 1;
+            $prev = $r['total'];
+        }
         $row = count($rows) + 1;
         $score = $r['total'] === null ? null : [
             'f' => "SUMPRODUCT({$weights},{$range($row)})/SUMPRODUCT({$weights},--({$range($row)}<>\"\"))*20",
             'v' => weighted_total(array_filter($r['criteria'], fn ($v) => $v !== null)),
         ];
-        $rows[] = [$r['total'] === null ? '–' : ++$rank, $r['agency'], $r['city'], $score, ...array_values($r['criteria']), $r['complete']];
+        $rows[] = [$r['total'] === null ? '–' : $rank, $r['agency'], $r['city'], $score, ...array_values($r['criteria']), $r['complete']];
     }
     return $rows;
 }
