@@ -4,6 +4,23 @@
 $notice = null;
 $generatedLink = null;
 
+$architectInput = function (array $src): array {
+    $data = [
+        'agency'    => trim($src['agency'] ?? ''),
+        'referent'  => trim($src['referent'] ?? ''),
+        'city'      => trim($src['city'] ?? ''),
+        'website'   => normalize_url($src['website'] ?? ''),
+        'drive_url' => normalize_url($src['drive_url'] ?? ''),
+    ];
+    foreach (architect_checks() as $col => $label) {
+        $data[$col] = max(0, min(2, (int) ($src[$col] ?? 0)));
+    }
+    if ($data['agency'] === '') {
+        throw new InvalidArgumentException('Le nom de l’agence est obligatoire.');
+    }
+    return $data;
+};
+
 $memberInput = function (): array {
     $role = $_POST['role'] ?? 'votant';
     return [
@@ -21,24 +38,21 @@ if ($method === 'POST') {
     try {
         switch ($action) {
             case 'architect_save':
-                $data = [
-                    'agency'    => trim($_POST['agency'] ?? ''),
-                    'referent'  => trim($_POST['referent'] ?? ''),
-                    'city'      => trim($_POST['city'] ?? ''),
-                    'website'   => normalize_url($_POST['website'] ?? ''),
-                    'drive_url' => normalize_url($_POST['drive_url'] ?? ''),
-                ];
-                if ($data['agency'] === '') {
-                    throw new InvalidArgumentException('Le nom de l’agence est obligatoire.');
+                $data = $architectInput($_POST);
+                create_architect($data);
+                flash('Architecte « ' . $data['agency'] . ' » ajouté.');
+                redirect('/reglages#architectes');
+
+            case 'architects_save':
+                $rows = array_map($architectInput, (array) ($_POST['a'] ?? [])); // tout est validé avant d'écrire
+                $changed = 0;
+                db()->beginTransaction();
+                foreach ($rows as $rowId => $data) {
+                    $set = implode(', ', array_map(fn ($col) => "{$col} = ?", array_keys($data)));
+                    $changed += db_exec("UPDATE architects SET {$set} WHERE id = ?", [...array_values($data), (int) $rowId]);
                 }
-                if ($id) {
-                    db_exec('UPDATE architects SET agency = ?, referent = ?, city = ?, website = ?, drive_url = ? WHERE id = ?',
-                        [...array_values($data), $id]);
-                    flash('Architecte « ' . $data['agency'] . ' » enregistré.');
-                } else {
-                    create_architect($data);
-                    flash('Architecte « ' . $data['agency'] . ' » ajouté.');
-                }
+                db()->commit();
+                flash(count($rows) . " architecte(s) enregistré(s), dont {$changed} modifié(s).");
                 redirect('/reglages#architectes');
 
             case 'architect_delete':

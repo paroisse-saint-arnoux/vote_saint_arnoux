@@ -10,6 +10,25 @@ function criteria(): array
     return $GLOBALS['criteria'];
 }
 
+/**
+ * Points de vigilance relevés par le MOD sur chaque dossier : colonne => libellé.
+ * Valeurs : 0 = pas de souci, 1 = incohérences relevées (⚠️), 2 = gros souci (⛔).
+ */
+function architect_checks(): array
+{
+    return ['check_grouping' => 'Groupement', 'check_financial' => 'Finances', 'check_insurance' => 'Assurances'];
+}
+
+/** Niveaux des points de vigilance d'un architecte : [colonne => 0|1|2]. */
+function architect_check_levels(array $architect): array
+{
+    $levels = [];
+    foreach (architect_checks() as $col => $label) {
+        $levels[$col] = (int) ($architect[$col] ?? 0);
+    }
+    return $levels;
+}
+
 function e(?string $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');

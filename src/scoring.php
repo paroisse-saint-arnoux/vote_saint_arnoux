@@ -210,6 +210,7 @@ function ranking(bool $withConsultative = false): array
             'criteria' => $crit,
             'total'    => round_or_null(weighted_total($avg[$a['id']] ?? []), 1),
             'complete' => (int) ($complete[$a['id']] ?? 0),
+            'checks'   => architect_check_levels($a),
         ];
     }
     usort($list, function ($x, $y) {
@@ -295,8 +296,10 @@ function person_view(): array
         'criteria' => array_map(fn ($c) => $c['short'], criteria()),
         'columns' => array_map(fn ($key, $col) => ['key' => $key, 'label' => $col['label'], 'role' => $col['role'], 'group' => $col['group']],
                                array_keys($columns), $columns),
+        'checks'  => architect_checks(),
         'rows'    => array_map(fn ($a) => ['id' => (int) $a['id'], 'agency' => $a['agency'], 'city' => $a['city'],
                                            'cells' => $cells[$a['id']],
+                                           'checks' => architect_check_levels($a),
                                            // nombre de votants ayant ce dossier dans leur top 10
                                            'top10' => count(array_filter(array_keys($columns), fn ($key) => !$columns[$key]['group']
                                                && $columns[$key]['role'] === 'votant'

@@ -112,6 +112,12 @@ table.grid { width: 100%; border-collapse: collapse; }
 .grid tr.clickable:hover td { background: #fcfaf6; }
 .grid tr.unranked td { color: var(--muted); }
 .grid td a { text-decoration: none; font-weight: 600; }
+/* points de vigilance du MOD : toute la ligne en orange (⚠️) ou rouge (⛔), sauf les cellules déjà colorées */
+.grid tr.alert-1 > td:not([class*="heat-"]):not(.top10) { background: #fdecd2; }
+.grid tr.alert-2 > td:not([class*="heat-"]):not(.top10) { background: #f9d6d3; }
+.grid tr.alert-1 { box-shadow: inset 4px 0 0 var(--warn); }
+.grid tr.alert-2 { box-shadow: inset 4px 0 0 var(--bad); }
+.grid .check { width: 30px; min-width: 30px; max-width: 30px; padding-left: 0; padding-right: 0; }
 
 .ranking .total { min-width: 150px; text-align: left; }
 .ranking .total b { margin-left: 8px; }
@@ -276,6 +282,7 @@ fieldset[disabled] .likert .opt { cursor: default; opacity: .75; }
 .form-grid td { padding: 6px 8px; }
 .form-grid input, .form-grid select { padding: 6px 8px; font-size: .9rem; min-width: 110px; }
 .form-grid input.wide { min-width: 260px; }
+.form-grid select.check-select { min-width: 0; }
 .form-grid input[type=checkbox] { width: 18px; height: 18px; min-width: 0; }
 .form-grid form.inline { display: flex; gap: 4px; margin: 0; }
 .form-grid tr.new-row td { background: #faf8f3; }

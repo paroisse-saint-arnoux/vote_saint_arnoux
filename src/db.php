@@ -68,13 +68,15 @@ function get_members(): array
 function create_architect(array $data): int
 {
     db_exec(
-        'INSERT INTO architects (agency, referent, city, website, drive_url, sort_key) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO architects (agency, referent, city, website, drive_url, ' . implode(', ', array_keys(architect_checks())) . ', sort_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             trim($data['agency']),
             trim($data['referent'] ?? ''),
             trim($data['city'] ?? ''),
             normalize_url($data['website'] ?? ''),
             normalize_url($data['drive_url'] ?? ''),
+            ...array_values(architect_check_levels($data)),
             random_int(0, 2_000_000_000),
         ]
     );

@@ -12,6 +12,17 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/src/bootstrap.php';
 
 db()->exec(file_get_contents(APP_ROOT . '/sql/schema.sql'));
+
+// Migrations : colonnes ajoutées après la création initiale des tables
+$existing = array_column(db_all(
+    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'architects'"
+), 'COLUMN_NAME');
+foreach (array_keys(architect_checks()) as $col) {
+    if (!in_array($col, $existing, true)) {
+        db()->exec("ALTER TABLE architects ADD COLUMN {$col} TINYINT UNSIGNED NOT NULL DEFAULT 0");
+        echo "Colonne architects.{$col} ajoutée\n";
+    }
+}
 echo "Schéma OK\n";
 
 // Liste du jury : config/jury.local.php (non versionné), sinon l'exemple fourni.

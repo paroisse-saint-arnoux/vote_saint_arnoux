@@ -17,7 +17,8 @@ $query = $withConsultative ? '?consultatifs=1' : '';
     <div class="table-wrap">
         <table class="grid ranking" id="ranking"
                data-src="/api/classement<?= $query ?>" data-voters="<?= $voters ?>"
-               data-criteria='<?= e(json_encode(array_map(fn ($c) => ['short' => $c['short'], 'title' => $c['title'], 'weight' => $c['weight']], criteria()), JSON_UNESCAPED_UNICODE)) ?>'>
+               data-criteria='<?= e(json_encode(array_map(fn ($c) => ['short' => $c['short'], 'title' => $c['title'], 'weight' => $c['weight']], criteria()), JSON_UNESCAPED_UNICODE)) ?>'
+               data-checks='<?= e(json_encode(architect_checks(), JSON_UNESCAPED_UNICODE)) ?>'>
             <thead></thead>
             <tbody></tbody>
         </table>

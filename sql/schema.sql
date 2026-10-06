@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS architects (
     city        VARCHAR(255) NOT NULL DEFAULT '',
     website     VARCHAR(500) NOT NULL DEFAULT '',
     drive_url   VARCHAR(500) NOT NULL DEFAULT '',
+    -- points de vigilance du MOD : 0 = pas de souci, 1 = incohérences (⚠️), 2 = gros souci (⛔)
+    check_grouping  TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    check_financial TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    check_insurance TINYINT UNSIGNED NOT NULL DEFAULT 0,
     -- clé aléatoire fixée à la création : ordre aléatoire mais identique pour tous
     sort_key    INT UNSIGNED NOT NULL,
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

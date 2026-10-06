@@ -67,10 +67,26 @@
 </section>
 
 <!-- ============================================================ Architectes -->
+<?php
+$checkSelect = function (string $form, array $a = [], string $prefix = '') {
+    $html = '';
+    foreach (architect_checks() as $col => $label) {
+        $name = $prefix === '' ? $col : "{$prefix}[{$col}]";
+        $html .= '<td><select form="' . $form . '" name="' . $name . '" class="check-select" title="' . e($label) . '">';
+        foreach (['—', '⚠️ Incohérences', '⛔ Gros souci'] as $level => $text) {
+            $html .= '<option value="' . $level . '"' . ((int) ($a[$col] ?? 0) === $level ? ' selected' : '') . '>' . $text . '</option>';
+        }
+        $html .= '</select></td>';
+    }
+    return $html;
+};
+?>
 <section class="section" id="architectes">
     <div class="section-head">
         <h2>Architectes <small class="muted">(<?= count($architects) ?>)</small></h2>
-        <p class="muted">Ordre d’affichage aléatoire, identique pour tous les membres.</p>
+        <p class="muted">Ordre d’affichage aléatoire, identique pour tous les membres.
+           Groupement, capacité financière, assurances : ⚠️ incohérences ou soucis relevés dans le dossier,
+           ⛔ le MOD n’est pas confiant sur ce dossier pour cet axe.</p>
         <form method="post" action="/reglages" class="inline">
             <?= csrf_field() ?>
             <button class="btn small" name="action" value="architects_shuffle"
@@ -79,20 +95,22 @@
     </div>
     <div class="table-wrap">
         <table class="grid form-grid">
-            <thead><tr><th>#</th><th>Agence</th><th>Référent</th><th>Ville</th><th>Site web</th><th>Dossier Google Drive</th><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Agence</th><th>Référent</th><th>Ville</th><th>Site web</th><th>Dossier Google Drive</th><?php foreach (architect_checks() as $label): ?><th><?= e($label) ?></th><?php endforeach; ?><th>Actions</th></tr></thead>
             <tbody>
-            <?php foreach ($architects as $i => $a): $f = 'a' . $a['id']; ?>
+            <?php // Toutes les lignes existantes appartiennent au même formulaire : « Enregistrer » les enregistre toutes
+            foreach ($architects as $i => $a): $f = 'a' . $a['id']; $n = 'a[' . $a['id'] . ']'; ?>
                 <tr class="<?= $a['drive_url'] ? '' : 'missing-drive' ?>">
                     <td class="muted"><?= $i + 1 ?></td>
-                    <td><input form="<?= $f ?>" name="agency" value="<?= e($a['agency']) ?>" required></td>
-                    <td><input form="<?= $f ?>" name="referent" value="<?= e($a['referent']) ?>"></td>
-                    <td><input form="<?= $f ?>" name="city" value="<?= e($a['city']) ?>"></td>
-                    <td><input form="<?= $f ?>" name="website" value="<?= e($a['website']) ?>"></td>
-                    <td><input form="<?= $f ?>" name="drive_url" value="<?= e($a['drive_url']) ?>" placeholder="https://drive.google.com/…" class="wide"></td>
+                    <td><input form="a-all" name="<?= $n ?>[agency]" value="<?= e($a['agency']) ?>" required></td>
+                    <td><input form="a-all" name="<?= $n ?>[referent]" value="<?= e($a['referent']) ?>"></td>
+                    <td><input form="a-all" name="<?= $n ?>[city]" value="<?= e($a['city']) ?>"></td>
+                    <td><input form="a-all" name="<?= $n ?>[website]" value="<?= e($a['website']) ?>"></td>
+                    <td><input form="a-all" name="<?= $n ?>[drive_url]" value="<?= e($a['drive_url']) ?>" placeholder="https://drive.google.com/…" class="wide"></td>
+                    <?= $checkSelect('a-all', $a, $n) ?>
                     <td class="nowrap">
                         <form method="post" action="/reglages" id="<?= $f ?>" class="inline">
                             <?= csrf_field() ?><input type="hidden" name="id" value="<?= $a['id'] ?>">
-                            <button class="btn small primary" name="action" value="architect_save">Enregistrer</button>
+                            <button form="a-all" class="btn small primary" name="action" value="architects_save" title="Enregistre toutes les lignes du tableau">Enregistrer</button>
                             <button class="btn small danger" name="action" value="architect_delete" formnovalidate data-confirm="Supprimer <?= e($a['agency']) ?> et toutes ses notes ?">Supprimer</button>
                         </form>
                     </td>
@@ -105,11 +123,13 @@
                 <td><input form="a-new" name="city" placeholder="Ville"></td>
                 <td><input form="a-new" name="website" placeholder="Site web"></td>
                 <td><input form="a-new" name="drive_url" placeholder="https://drive.google.com/…" class="wide"></td>
+                <?= $checkSelect('a-new') ?>
                 <td><form method="post" action="/reglages" id="a-new" class="inline"><?= csrf_field() ?>
                     <button class="btn small primary" name="action" value="architect_save">Ajouter</button></form></td>
             </tr>
             </tbody>
         </table>
+        <form method="post" action="/reglages" id="a-all" hidden><?= csrf_field() ?></form>
     </div>
 
     <form method="post" action="/reglages" enctype="multipart/form-data" class="card import-box">

@@ -144,6 +144,15 @@
     const cell = (key, value, cls, content) =>
         `<td class="${cls}" data-k="${key}" data-v="${value === null || value === undefined ? '' : value}">${content}</td>`;
 
+    // Points de vigilance du MOD (groupement, capacité financière, assurances) : 0 = ok, 1 = ⚠️, 2 = ⛔
+    const checkHeads = (labels) => Object.values(labels).map((l) => `<th class="num check" title="${esc(l)}">${esc(l.charAt(0))}</th>`).join('');
+    const checkCells = (id, labels, levels) => Object.entries(labels).map(([col, label]) => {
+        const v = levels[col] || 0;
+        const text = ['pas de souci', 'incohérences ou soucis relevés', 'gros souci : le MOD n’est pas confiant'][v];
+        return cell(`${id}-${col}`, v, 'num check', `<span title="${esc(label)} : ${text}">${['<span class="muted">·</span>', '⚠️', '⛔'][v]}</span>`);
+    }).join('');
+    const alertClass = (levels) => { const m = Math.max(0, ...Object.values(levels)); return m ? ` alert-${m}` : ''; };
+
     // ------------------------------------------------------------------ Grille de notation
 
     const scoring = $('#scoring');
@@ -222,23 +231,25 @@
         const criteria = JSON.parse(ranking.dataset.criteria);
         const keys = Object.keys(criteria);
         const voters = Number(ranking.dataset.voters);
+        const checks = JSON.parse(ranking.dataset.checks);
 
         ranking.tHead.innerHTML = '<tr><th class="rank">Rang</th><th>Agence</th><th class="num">Score / 100</th>'
             + keys.map((k) => `<th class="num" title="${esc(criteria[k].title)}">C${k}<small>${esc(criteria[k].short)} · ${criteria[k].weight} %</small></th>`).join('')
-            + '<th class="num" title="Membres pris en compte ayant noté les 6 critères">Votes complets</th></tr>';
+            + '<th class="num" title="Membres pris en compte ayant noté les 6 critères">Votes complets</th>' + checkHeads(checks) + '</tr>';
 
         const render = (rows) => {
             let rank = 0;
             diffRender(ranking, rows.map((r) => {
                 const ranked = r.total !== null;
                 if (ranked) rank++;
-                return `<tr class="clickable ${ranked ? '' : 'unranked'}" data-href="/architecte/${r.id}/tableau">`
+                return `<tr class="clickable ${ranked ? '' : 'unranked'}${alertClass(r.checks)}" data-href="/architecte/${r.id}/tableau">`
                     + `<td class="rank">${ranked ? rank : '–'}</td>`
                     + `<td><a href="/architecte/${r.id}/tableau">${esc(r.agency)}</a><small class="muted"> ${esc(r.city || '')}</small></td>`
                     + cell(`t${r.id}`, r.total, 'num total', ranked
                         ? `<span class="bar"><i style="width:${r.total}%"></i></span><b>${fmt(r.total)}</b>` : '—')
                     + keys.map((k) => cell(`c${r.id}-${k}`, r.criteria[k], 'num ' + heat(r.criteria[k]), fmt(r.criteria[k], 2))).join('')
                     + cell(`n${r.id}`, r.complete, 'num muted', `${r.complete} / ${voters}`)
+                    + checkCells(r.id, checks, r.checks)
                     + '</tr>';
             }).join(''));
         };
@@ -290,8 +301,8 @@
                 + th('top10', '<b>Top 10 votants</b>', 'num group')
                 + data.columns.map((c) => th(c.key, c.group ? `<b>${esc(c.label)}</b>`
                     : esc(c.label) + (c.role === 'consultatif' ? '<small>consultatif</small>' : ''), 'num' + (c.group ? ' group' : ''))).join('')
-                + '</tr>';
-            diffRender(persons, [...data.rows].sort(compare).map((r) => `<tr class="clickable" data-href="/architecte/${r.id}/tableau">`
+                + checkHeads(data.checks) + '</tr>';
+            diffRender(persons, [...data.rows].sort(compare).map((r) => `<tr class="clickable${alertClass(r.checks)}" data-href="/architecte/${r.id}/tableau">`
                 + `<td><a href="/architecte/${r.id}/tableau">${esc(r.agency)}</a><small class="muted"> ${esc(r.city || '')}</small></td>`
                 + cell(`${r.id}-top10`, r.top10, 'num group', r.top10 || '<span class="muted">0</span>')
                 + data.columns.map((c) => {
@@ -301,6 +312,7 @@
                             : (showScores.checked ? `<span title="Rang ${rank}">${fmt(score)}</span>` + squares(criteria)
                                 : `<span title="${fmt(score)} / 100">${rank}</span>`));
                 }).join('')
+                + checkCells(r.id, data.checks, r.checks)
                 + '</tr>').join(''));
         };
 
