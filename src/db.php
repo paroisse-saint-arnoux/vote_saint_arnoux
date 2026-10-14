@@ -42,10 +42,38 @@ function get_architects(): array
     return db_all('SELECT * FROM architects ORDER BY sort_key, id');
 }
 
-/** Dossiers proposés au jury : ceux dont le lien Google Drive est renseigné. */
+/**
+ * Dossiers proposés au jury : à l'étape 1, ceux dont le lien Google Drive est renseigné ;
+ * à l'étape 2, les dossiers retenus à l'issue de l'étape 1.
+ */
 function get_evaluable_architects(): array
 {
-    return db_all("SELECT * FROM architects WHERE drive_url <> '' ORDER BY sort_key, id");
+    if (stage() === 1) {
+        return db_all("SELECT * FROM architects WHERE drive_url <> '' ORDER BY sort_key, id");
+    }
+    $ids = stage2_architect_ids();
+    return !$ids ? [] : db_all('SELECT * FROM architects WHERE id IN (' . implode(',', $ids) . ') ORDER BY sort_key, id');
+}
+
+/**
+ * Dossiers retenus pour l'étape 2 : les 10 premiers du classement officiel de l'étape 1 (ex aequo inclus).
+ * La sélection est figée au premier appel, pour ne plus dépendre des notes ou des statuts de l'étape 1 ;
+ * elle peut être recalculée depuis les réglages.
+ */
+function stage2_architect_ids(bool $recompute = false): array
+{
+    static $ids = null;
+    if ($ids !== null && !$recompute) {
+        return $ids;
+    }
+    $saved = $recompute ? null : setting('stage2_architects');
+    if ($saved !== null) {
+        return $ids = array_map('intval', json_decode($saved, true) ?: []);
+    }
+    $ranks = with_stage(1, fn () => rank_by(array_column(ranking(), 'total', 'id')));
+    $ids = array_keys(array_filter($ranks, fn ($r) => $r !== null && $r <= 10));
+    save_setting('stage2_architects', json_encode($ids));
+    return $ids;
 }
 
 function get_architect(int $id): ?array
@@ -60,22 +88,29 @@ function get_jury(): array
                    ORDER BY FIELD(role, 'votant', 'consultatif'), position, name");
 }
 
+/** Membre ayant le statut MOD (un seul possible). */
+function get_mod(): ?array
+{
+    return db_one("SELECT * FROM members WHERE role = 'mod' ORDER BY id LIMIT 1");
+}
+
 function get_members(): array
 {
-    return db_all("SELECT * FROM members ORDER BY FIELD(role, 'votant', 'consultatif', 'aucun'), position, name");
+    return db_all("SELECT * FROM members ORDER BY FIELD(role, 'votant', 'consultatif', 'mod', 'aucun'), position, name");
 }
 
 function create_architect(array $data): int
 {
     db_exec(
-        'INSERT INTO architects (agency, referent, city, website, drive_url, ' . implode(', ', array_keys(architect_checks())) . ', sort_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO architects (agency, referent, city, website, drive_url, drive_url_stage2, ' . implode(', ', array_keys(architect_checks())) . ', sort_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
             trim($data['agency']),
             trim($data['referent'] ?? ''),
             trim($data['city'] ?? ''),
             normalize_url($data['website'] ?? ''),
             normalize_url($data['drive_url'] ?? ''),
+            normalize_url($data['drive_url_stage2'] ?? ''),
             ...array_values(architect_check_levels($data)),
             random_int(0, 2_000_000_000),
         ]

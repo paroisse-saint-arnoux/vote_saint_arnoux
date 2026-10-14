@@ -50,12 +50,18 @@ function require_admin(): array
     return $member;
 }
 
+/** Membres qui notent : votants et consultatifs, et à l'étape 2 le MOD (sur ses seuls critères). */
+function can_vote(array $member): bool
+{
+    return in_array($member['role'], stage() === 1 ? ['votant', 'consultatif'] : ['votant', 'consultatif', 'mod'], true);
+}
+
 /** Accès au classement et aux tableaux de bord : administrateurs, et jurés ayant noté 100 % des dossiers. */
 function can_view_results(array $member): bool
 {
     static $cache = [];
     return $cache[$member['id']] ??= $member['is_admin']
-        || (in_array($member['role'], ['votant', 'consultatif'], true) && has_completed_all((int) $member['id']));
+        || (can_vote($member) && has_completed_all((int) $member['id']));
 }
 
 function require_results_access(): array

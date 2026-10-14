@@ -179,22 +179,24 @@
 
         const setState = (text, cls) => { state.textContent = text; state.className = 'save-state ' + (cls || ''); };
 
-        scoring.addEventListener('change', async (ev) => {
-            const input = ev.target;
-            if (input.type !== 'radio') return;
-            const fs = input.closest('fieldset');
-            computeTotal();
+        const inFlight = new Set(); // enregistrements en cours, attendus avant de quitter la page
+        const flushers = [];        // enregistrement immédiat des commentaires en attente
+
+        /** Enregistre une note ou un commentaire ; renvoie la réponse du serveur, ou null en cas d'échec. */
+        const save = (url, fs, payload) => {
+            const job = send(url, fs, payload);
+            inFlight.add(job);
+            job.finally(() => inFlight.delete(job));
+            return job;
+        };
+        const send = async (url, fs, payload) => {
             pending++;
             setState('Enregistrement…', 'saving');
             try {
-                const res = await fetch('/api/score', {
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-                    body: JSON.stringify({
-                        architect_id: architectId,
-                        criterion: Number(fs.dataset.criterion),
-                        score: input.value === '' ? null : Number(input.value),
-                    }),
+                    body: JSON.stringify({ architect_id: architectId, criterion: Number(fs.dataset.criterion), ...payload }),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || 'Erreur ' + res.status);
@@ -202,14 +204,74 @@
                     const now = new Date();
                     setState('✓ Enregistré à ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), 'saved');
                 }
-                fs.classList.remove('flash-ok');
-                void fs.offsetWidth;
-                fs.classList.add('flash-ok');
-                if (data.completed) celebrate();
+                return data;
             } catch (e) {
                 pending--;
                 setState('⚠ Non enregistré : ' + e.message, 'error');
+                return null;
             }
+        };
+
+        // Étape 2 : critères notés dans l'ordre, chacun sur tous les dossiers avant de passer au suivant
+        const applyLocks = (u) => {
+            scoring.querySelectorAll('fieldset[data-lockable]').forEach((fs) => {
+                const n = Number(fs.dataset.criterion);
+                const locked = !!u && n > u.criterion, current = !!u && n === u.criterion;
+                fs.disabled = locked;
+                fs.classList.toggle('locked', locked);
+                fs.classList.toggle('current', current);
+                const note = fs.querySelector('.lock-note');
+                note.hidden = !locked && !current;
+                note.textContent = locked ? `🔒 Notez d’abord le critère ${u.criterion} sur tous les dossiers (${u.done} / ${u.count} notés).`
+                    : (current ? `Critère en cours : ${u.done} / ${u.count} dossiers notés.` : '');
+            });
+            document.querySelectorAll('[data-hash-link]').forEach((a) => { a.hash = u ? 'c' + u.criterion : ''; });
+        };
+
+        scoring.addEventListener('change', async (ev) => {
+            const input = ev.target;
+            if (input.type !== 'radio') return;
+            const fs = input.closest('fieldset');
+            computeTotal();
+            const data = await save('/api/score', fs, { score: input.value === '' ? null : Number(input.value) });
+            if (!data) return;
+            fs.classList.remove('flash-ok');
+            void fs.offsetWidth;
+            fs.classList.add('flash-ok');
+            if (scoring.querySelector('fieldset[data-lockable]')) applyLocks(data.unlocked);
+            if (data.completed) celebrate();
+        });
+
+        // Clic sur une note : focus sur le commentaire du critère (pas au clavier, pour garder la navigation aux flèches)
+        scoring.addEventListener('pointerup', (ev) => {
+            const opt = ev.target.closest('.likert .opt');
+            const area = opt && opt.closest('fieldset').querySelector('textarea[name^="comment"]');
+            if (area) setTimeout(() => { if (!area.disabled) area.focus(); });
+        });
+
+        // Commentaires : enregistrés après une pause dans la frappe, et en quittant le champ
+        scoring.querySelectorAll('textarea[name^="comment"]').forEach((area) => {
+            let timer = null, saved = area.value;
+            const flush = () => {
+                clearTimeout(timer);
+                if (area.value === saved) return;
+                const value = saved = area.value;
+                save('/api/comment', area.closest('fieldset'), { comment: value })
+                    .then((data) => { if (!data && saved === value) saved = null; }); // nouvel essai au prochain changement
+            };
+            area.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(flush, 1000); });
+            area.addEventListener('blur', flush);
+            flushers.push(flush);
+        });
+
+        // Changement de dossier : les commentaires en cours sont enregistrés avant de quitter la page
+        document.addEventListener('click', (ev) => {
+            const link = ev.target.closest('a[href^="/"]');
+            if (!link || ev.defaultPrevented || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+            flushers.forEach((flush) => flush());
+            if (inFlight.size === 0) return;
+            ev.preventDefault();
+            Promise.allSettled([...inFlight]).then(() => { window.location.href = link.href; });
         });
 
         computeTotal();
@@ -235,7 +297,7 @@
 
         ranking.tHead.innerHTML = '<tr><th class="rank">Rang</th><th>Agence</th><th class="num">Score / 100</th>'
             + keys.map((k) => `<th class="num" title="${esc(criteria[k].title)}">C${k}<small>${esc(criteria[k].short)} · ${criteria[k].weight} %</small></th>`).join('')
-            + '<th class="num" title="Membres pris en compte ayant noté les 6 critères">Votes complets</th>' + checkHeads(checks) + '</tr>';
+            + '<th class="num" title="Membres pris en compte ayant noté tous les critères">Votes complets</th>' + checkHeads(checks) + '</tr>';
 
         const render = (rows) => {
             let rank = 0, prev = null;
@@ -281,7 +343,7 @@
             return sort.dir * (ra - rb);
         };
 
-        // Petits carrés de couleur des 6 critères, comme sur la page d'accueil (moyennes arrondies pour les jurys)
+        // Petits carrés de couleur des critères, comme sur la page d'accueil (moyennes arrondies pour les jurys)
         const squares = (criteria) => '<span class="progress">' + Object.entries(data.criteria).map(([k, short]) => {
             const v = criteria[k];
             return v === null ? `<i title="C${k} ${esc(short)} : non évalué"></i>`
@@ -298,7 +360,7 @@
 
         const render = () => {
             persons.tHead.innerHTML = '<tr>' + th('agency', 'Agence')
-                + th('top10', '<b>Top 10 votants</b>', 'num group')
+                + th('top10', `<b>Top ${data.top} votants</b>`, 'num group')
                 + data.columns.map((c) => th(c.key, c.group ? `<b>${esc(c.label)}</b>`
                     : esc(c.label) + (c.role === 'consultatif' ? '<small>consultatif</small>' : ''), 'num' + (c.group ? ' group' : ''))).join('')
                 + checkHeads(data.checks) + '</tr>';
@@ -307,7 +369,7 @@
                 + cell(`${r.id}-top10`, r.top10, 'num group', r.top10 || '<span class="muted">0</span>')
                 + data.columns.map((c) => {
                     const { rank, score, criteria } = r.cells[c.key];
-                    return cell(`${r.id}-${c.key}`, rank, 'num' + (c.group ? ' group' : '') + (rank !== null && rank <= 10 ? ' top10' : ''),
+                    return cell(`${r.id}-${c.key}`, rank, 'num' + (c.group ? ' group' : '') + (rank !== null && rank <= data.top ? ' top10' : ''),
                         rank === null ? '<span class="muted">–</span>'
                             : (showScores.checked ? `<span title="Rang ${rank}">${fmt(score)}</span>` + squares(criteria)
                                 : `<span title="${fmt(score)} / 100">${rank}</span>`));

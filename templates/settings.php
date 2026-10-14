@@ -14,11 +14,47 @@
     </div>
 <?php endif; ?>
 
+<!-- ============================================================ Étape -->
+<section class="section" id="etape">
+    <div class="section-head">
+        <h2>Étape de la consultation</h2>
+        <p class="muted">L’étape choisie s’applique à tous les membres : dossiers proposés, grille de notation, classement et tableaux de bord.
+           Les notes de chaque étape sont conservées séparément.</p>
+    </div>
+    <div class="card stage-card">
+        <form method="post" action="/reglages" class="stage-choice">
+            <?= csrf_field() ?><input type="hidden" name="action" value="stage_save">
+            <?php foreach ([1 => 'Sélection des candidatures, tous les dossiers', 2 => 'Livrables des candidats retenus'] as $s => $label): ?>
+                <label class="stage-option<?= stage() === $s ? ' active' : '' ?>">
+                    <input type="radio" name="stage" value="<?= $s ?>" data-autosubmit<?= stage() === $s ? ' checked' : '' ?>>
+                    <span><strong>Étape <?= $s ?></strong><small class="muted"><?= e($label) ?></small></span>
+                </label>
+            <?php endforeach; ?>
+            <noscript><button class="btn small primary">Appliquer</button></noscript>
+        </form>
+        <div class="stage-selection">
+            <strong>Dossiers retenus pour l’étape 2 (<?= count($selected) ?>)</strong>
+            <span class="muted">— les 10 premiers du classement officiel de l’étape 1, figés lors du passage à l’étape 2.</span>
+            <ol>
+                <?php foreach ($selected as $r): ?>
+                    <li><span class="muted"><?= $r['rank'] ?>.</span> <?= e($r['agency']) ?> <small class="muted"><?= fmt($r['total']) ?> / 100</small></li>
+                <?php endforeach; ?>
+            </ol>
+            <form method="post" action="/reglages" class="inline">
+                <?= csrf_field() ?>
+                <button class="btn small" name="action" value="stage2_reselect"
+                        data-confirm="Recalculer la liste des dossiers retenus d’après le classement actuel de l’étape 1 ?">Recalculer la sélection</button>
+            </form>
+        </div>
+    </div>
+</section>
+
 <!-- ============================================================ Jury -->
 <section class="section" id="jury">
     <div class="section-head">
         <h2>Membres du jury</h2>
         <p class="muted">« Votant » : compte dans le score. « Consultatif » : note, mais ne compte que pour les écarts types.
+           « MOD » : à l’étape 2, note seul les critères 1 et 2, sa note étant reprise pour tous les membres du jury (un seul MOD).
            « Hors jury » : accès en consultation (ex. administrateur).</p>
     </div>
     <div class="table-wrap">
@@ -30,7 +66,7 @@
                     <td><input form="<?= $f ?>" name="name" value="<?= e($m['name']) ?>" required></td>
                     <td><input form="<?= $f ?>" name="email" type="email" value="<?= e($m['email']) ?>" required></td>
                     <td><select form="<?= $f ?>" name="role">
-                        <?php foreach (['votant', 'consultatif', 'aucun'] as $r): ?>
+                        <?php foreach (['votant', 'consultatif', 'mod', 'aucun'] as $r): ?>
                             <option value="<?= $r ?>" <?= $m['role'] === $r ? 'selected' : '' ?>><?= role_label($r) ?></option>
                         <?php endforeach; ?>
                     </select></td>
@@ -54,7 +90,7 @@
                 <td><input form="m-new" name="name" placeholder="Nouveau membre" required></td>
                 <td><input form="m-new" name="email" type="email" placeholder="adresse@exemple.fr" required></td>
                 <td><select form="m-new" name="role">
-                    <option value="votant">Votant</option><option value="consultatif">Consultatif</option><option value="aucun">Hors jury</option>
+                    <option value="votant">Votant</option><option value="consultatif">Consultatif</option><option value="mod">MOD</option><option value="aucun">Hors jury</option>
                 </select></td>
                 <td class="center"><input form="m-new" type="checkbox" name="is_admin" value="1"></td>
                 <td></td>
@@ -95,7 +131,7 @@ $checkSelect = function (string $form, array $a = [], string $prefix = '') {
     </div>
     <div class="table-wrap">
         <table class="grid form-grid">
-            <thead><tr><th>#</th><th>Agence</th><th>Référent</th><th>Ville</th><th>Site web</th><th>Dossier Google Drive</th><?php foreach (architect_checks() as $label): ?><th><?= e($label) ?></th><?php endforeach; ?><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Agence</th><th>Référent</th><th>Ville</th><th>Site web</th><th>Dossier Google Drive</th><th>Livrable étape 2</th><?php foreach (architect_checks() as $label): ?><th><?= e($label) ?></th><?php endforeach; ?><th>Actions</th></tr></thead>
             <tbody>
             <?php // Toutes les lignes existantes appartiennent au même formulaire : « Enregistrer » les enregistre toutes
             foreach ($architects as $i => $a): $f = 'a' . $a['id']; $n = 'a[' . $a['id'] . ']'; ?>
@@ -106,6 +142,7 @@ $checkSelect = function (string $form, array $a = [], string $prefix = '') {
                     <td><input form="a-all" name="<?= $n ?>[city]" value="<?= e($a['city']) ?>"></td>
                     <td><input form="a-all" name="<?= $n ?>[website]" value="<?= e($a['website']) ?>"></td>
                     <td><input form="a-all" name="<?= $n ?>[drive_url]" value="<?= e($a['drive_url']) ?>" placeholder="https://drive.google.com/…" class="wide"></td>
+                    <td><input form="a-all" name="<?= $n ?>[drive_url_stage2]" value="<?= e($a['drive_url_stage2']) ?>" placeholder="https://drive.google.com/…" class="wide"></td>
                     <?= $checkSelect('a-all', $a, $n) ?>
                     <td class="nowrap">
                         <form method="post" action="/reglages" id="<?= $f ?>" class="inline">
@@ -123,6 +160,7 @@ $checkSelect = function (string $form, array $a = [], string $prefix = '') {
                 <td><input form="a-new" name="city" placeholder="Ville"></td>
                 <td><input form="a-new" name="website" placeholder="Site web"></td>
                 <td><input form="a-new" name="drive_url" placeholder="https://drive.google.com/…" class="wide"></td>
+                <td><input form="a-new" name="drive_url_stage2" placeholder="https://drive.google.com/…" class="wide"></td>
                 <?= $checkSelect('a-new') ?>
                 <td><form method="post" action="/reglages" id="a-new" class="inline"><?= csrf_field() ?>
                     <button class="btn small primary" name="action" value="architect_save">Ajouter</button></form></td>
@@ -150,15 +188,15 @@ $checkSelect = function (string $form, array $a = [], string $prefix = '') {
     <form method="post" action="/reglages" class="card danger-card">
         <?= csrf_field() ?>
         <div>
-            <strong>Réinitialiser toutes les réponses</strong>
-            <p class="muted">Supprime les <?= $scoresTotal ?> note(s) saisie(s) par l’ensemble du jury, pour tous les dossiers.
-               Les membres, les architectes et les sessions sont conservés.</p>
+            <strong>Réinitialiser toutes les réponses de l’étape <?= stage() ?></strong>
+            <p class="muted">Supprime les <?= $scoresTotal ?> note(s) et les commentaires saisis à l’étape <?= stage() ?> par l’ensemble du jury, pour tous les dossiers.
+               Les notes de l’autre étape, les membres, les architectes et les sessions sont conservés.</p>
         </div>
         <label>Saisissez <code>EFFACER</code> pour confirmer
             <input name="confirm" autocomplete="off" required pattern="EFFACER" placeholder="EFFACER"
                    data-unlock="#reset-btn" <?= $scoresTotal ? '' : 'disabled' ?>>
         </label>
         <button class="btn danger-solid" id="reset-btn" name="action" value="scores_reset" disabled
-                data-confirm="Effacer définitivement les <?= $scoresTotal ?> note(s) de tous les membres du jury ? Cette action est irréversible.">Effacer toutes les réponses</button>
+                data-confirm="Effacer définitivement les <?= $scoresTotal ?> note(s) de l’étape <?= stage() ?> de tous les membres du jury ? Cette action est irréversible.">Effacer les réponses de l’étape <?= stage() ?></button>
     </form>
 </section>

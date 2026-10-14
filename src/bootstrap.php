@@ -29,6 +29,7 @@ $GLOBALS['criteria'] = require __DIR__ . '/criteria.php';
 
 require __DIR__ . '/helpers.php';
 require __DIR__ . '/db.php';
+require __DIR__ . '/migrations.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/scoring.php';
 require __DIR__ . '/import.php';

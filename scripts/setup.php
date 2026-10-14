@@ -1,5 +1,5 @@
 <?php
-// Initialisation : crée les tables, ajoute le jury initial et importe les architectes.
+// Initialisation : crée les tables, applique les migrations, ajoute le jury initial et importe les architectes.
 // Idempotent : peut être relancé sans risque.
 //
 //   docker compose exec web php scripts/setup.php
@@ -13,15 +13,9 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 
 db()->exec(file_get_contents(APP_ROOT . '/sql/schema.sql'));
 
-// Migrations : colonnes ajoutées après la création initiale des tables
-$existing = array_column(db_all(
-    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'architects'"
-), 'COLUMN_NAME');
-foreach (array_keys(architect_checks()) as $col) {
-    if (!in_array($col, $existing, true)) {
-        db()->exec("ALTER TABLE architects ADD COLUMN {$col} TINYINT UNSIGNED NOT NULL DEFAULT 0");
-        echo "Colonne architects.{$col} ajoutée\n";
-    }
+// Migrations : modifications du schéma postérieures à schema.sql
+foreach (run_migrations() as $name) {
+    echo "Migration {$name} appliquée\n";
 }
 echo "Schéma OK\n";
 

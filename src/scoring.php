@@ -7,6 +7,9 @@
 // - Score officiel d'un architecte : calculé à partir de la moyenne de chaque critère
 //   sur les seuls membres « votant » (dans le classement : ceux ayant noté tous les dossiers).
 // - Écarts types : calculés sur tous les membres du jury (votants + consultatifs).
+// - Les notes sont propres à chaque étape (colonne stage) ; seule l'étape en cours est prise en compte.
+// - Étape 2 : les critères « mod » sont notés par le seul MOD ; ses notes sont recopiées
+//   pour chaque membre du jury (sync_mod_scores), si bien que tous les calculs les incluent.
 
 /** @param array<int, float|int|null> $scores critère => note */
 function weighted_total(array $scores): ?float
@@ -50,28 +53,99 @@ function round_or_null(?float $v, int $precision = 2): ?float
 /** Notes d'un membre pour un architecte : [critère => note]. */
 function member_scores(int $memberId, int $architectId): array
 {
-    $rows = db_all('SELECT criterion, score FROM scores WHERE member_id = ? AND architect_id = ?', [$memberId, $architectId]);
+    $rows = db_all('SELECT criterion, score FROM scores WHERE member_id = ? AND architect_id = ? AND stage = ?', [$memberId, $architectId, stage()]);
     return array_map('intval', array_column($rows, 'score', 'criterion'));
 }
 
 function save_score(int $memberId, int $architectId, int $criterion, ?int $score): void
 {
     if ($score === null) {
-        db_exec('DELETE FROM scores WHERE member_id = ? AND architect_id = ? AND criterion = ?', [$memberId, $architectId, $criterion]);
+        db_exec('DELETE FROM scores WHERE member_id = ? AND architect_id = ? AND stage = ? AND criterion = ?', [$memberId, $architectId, stage(), $criterion]);
+    } else {
+        db_exec(
+            'INSERT INTO scores (member_id, architect_id, stage, criterion, score) VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE score = VALUES(score)',
+            [$memberId, $architectId, stage(), $criterion, $score]
+        );
+    }
+    if (isset(mod_criteria()[$criterion])) {
+        sync_mod_scores();
+    }
+}
+
+/**
+ * Recopie les notes du MOD sur ses critères (étape 2) pour chaque membre du jury.
+ * À appeler après une note du MOD et après tout changement dans la composition du jury.
+ */
+function sync_mod_scores(): void
+{
+    $in = implode(',', array_keys(with_stage(2, fn () => mod_criteria())));
+    $mod = get_mod();
+    db()->beginTransaction();
+    db_exec("DELETE s FROM scores s JOIN members m ON m.id = s.member_id
+             WHERE s.stage = 2 AND s.criterion IN ({$in}) AND m.role <> 'mod'");
+    if ($mod) {
+        db_exec("INSERT INTO scores (member_id, architect_id, stage, criterion, score)
+                 SELECT j.id, s.architect_id, s.stage, s.criterion, s.score
+                 FROM scores s JOIN members j ON j.role IN ('votant', 'consultatif')
+                 WHERE s.member_id = ? AND s.stage = 2 AND s.criterion IN ({$in})", [$mod['id']]);
+    }
+    db()->commit();
+}
+
+/** Commentaires d'un membre pour un architecte : [critère => commentaire]. */
+function member_comments(int $memberId, int $architectId): array
+{
+    $rows = db_all('SELECT criterion, comment FROM comments WHERE member_id = ? AND architect_id = ? AND stage = ?', [$memberId, $architectId, stage()]);
+    return array_column($rows, 'comment', 'criterion');
+}
+
+function save_comment(int $memberId, int $architectId, int $criterion, string $comment): void
+{
+    if (trim($comment) === '') {
+        db_exec('DELETE FROM comments WHERE member_id = ? AND architect_id = ? AND stage = ? AND criterion = ?', [$memberId, $architectId, stage(), $criterion]);
         return;
     }
     db_exec(
-        'INSERT INTO scores (member_id, architect_id, criterion, score) VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE score = VALUES(score)',
-        [$memberId, $architectId, $criterion, $score]
+        'INSERT INTO comments (member_id, architect_id, stage, criterion, comment) VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE comment = VALUES(comment)',
+        [$memberId, $architectId, stage(), $criterion, $comment]
     );
+}
+
+/**
+ * Étape 2 : les critères se notent dans l'ordre, chacun sur tous les dossiers avant de passer au suivant.
+ * Renvoie le premier critère du membre qui n'est pas encore noté sur tous les dossiers (les suivants
+ * sont verrouillés) et le nombre de dossiers déjà notés pour ce critère ; null si tout est accessible.
+ * @return array{criterion:int, done:int, count:int}|null
+ */
+function unlocked_criterion(array $member): ?array
+{
+    if (stage() === 1 || $member['role'] === 'mod') {
+        return null;
+    }
+    $architects = get_evaluable_architects();
+    $progress = member_progress((int) $member['id']);
+    foreach (own_criteria($member['role']) as $n => $c) {
+        $done = count(array_filter($architects, fn ($a) => isset($progress[$a['id']][$n])));
+        if ($done < count($architects)) {
+            return ['criterion' => $n, 'done' => $done, 'count' => count($architects)];
+        }
+    }
+    return null;
+}
+
+/** Vrai si le membre peut modifier sa note sur ce critère (étape 2 : critère déjà déverrouillé). */
+function criterion_unlocked(?array $unlocked, int $criterion): bool
+{
+    return $unlocked === null || $criterion <= $unlocked['criterion'];
 }
 
 /** Données du tableau de bord d'un architecte. */
 function architect_dashboard(int $architectId): array
 {
     $jury = get_jury();
-    $raw = db_all('SELECT member_id, criterion, score FROM scores WHERE architect_id = ?', [$architectId]);
+    $raw = db_all('SELECT member_id, criterion, score FROM scores WHERE architect_id = ? AND stage = ?', [$architectId, stage()]);
     $byMember = [];
     foreach ($raw as $r) {
         $byMember[$r['member_id']][(int) $r['criterion']] = (int) $r['score'];
@@ -132,20 +206,30 @@ function architect_dashboard(int $architectId): array
     ];
 }
 
-/** Ids des membres ayant noté tous les critères de tous les dossiers proposés au jury. */
+/** Ids des membres ayant noté tous leurs critères (voir own_criteria()) sur tous les dossiers proposés au jury. */
 function completed_member_ids(): array
 {
     $architects = get_evaluable_architects();
     if (!$architects) {
         return [];
     }
-    $rows = db_all(
-        "SELECT s.member_id FROM scores s JOIN architects a ON a.id = s.architect_id
-         WHERE a.drive_url <> '' AND s.criterion IN (" . implode(',', array_keys(criteria())) . ")
-         GROUP BY s.member_id HAVING COUNT(*) = ?",
-        [count($architects) * count(criteria())]
-    );
-    return array_map('intval', array_column($rows, 'member_id'));
+    $counts = [];
+    foreach (db_all(
+        'SELECT member_id, criterion, COUNT(*) AS n FROM scores
+         WHERE stage = ? AND architect_id IN (' . implode(',', array_column($architects, 'id')) . ')
+         GROUP BY member_id, criterion',
+        [stage()]
+    ) as $r) {
+        $counts[$r['member_id']][(int) $r['criterion']] = (int) $r['n'];
+    }
+    $ids = [];
+    foreach (db_all("SELECT id, role FROM members WHERE role IN ('votant', 'consultatif', 'mod')") as $m) {
+        $own = array_keys(own_criteria($m['role']));
+        if ($own && !array_filter($own, fn ($n) => ($counts[$m['id']][$n] ?? 0) < count($architects))) {
+            $ids[] = (int) $m['id'];
+        }
+    }
+    return $ids;
 }
 
 /**
@@ -169,8 +253,9 @@ function average_scores(array $memberIds): array
     $avg = [];
     $rows = db_all(
         'SELECT architect_id, criterion, AVG(score) AS avg_score FROM scores
-         WHERE member_id IN (' . implode(',', array_map('intval', $memberIds)) . ')
-         GROUP BY architect_id, criterion'
+         WHERE stage = ? AND member_id IN (' . implode(',', array_map('intval', $memberIds)) . ')
+         GROUP BY architect_id, criterion',
+        [stage()]
     );
     foreach ($rows as $r) {
         $avg[$r['architect_id']][(int) $r['criterion']] = (float) $r['avg_score'];
@@ -186,19 +271,19 @@ function ranking(bool $withConsultative = false): array
 {
     $ids = array_column(ranking_members($withConsultative), 'id');
     $avg = average_scores($ids);
-    // Nombre de membres pris en compte ayant noté les 6 critères
+    // Nombre de membres pris en compte ayant noté tous les critères
     $complete = !$ids ? [] : db_all(
         'SELECT architect_id, COUNT(*) AS n FROM (
             SELECT architect_id, member_id FROM scores
-            WHERE member_id IN (' . implode(',', array_map('intval', $ids)) . ')
+            WHERE stage = ? AND member_id IN (' . implode(',', array_map('intval', $ids)) . ')
             GROUP BY architect_id, member_id HAVING COUNT(*) = ?
          ) s GROUP BY architect_id',
-        [count(criteria())]
+        [stage(), count(criteria())]
     );
     $complete = array_column($complete, 'n', 'architect_id');
 
     $list = [];
-    foreach (get_evaluable_architects() as $a) { // dossiers sans lien Drive exclus
+    foreach (get_evaluable_architects() as $a) { // étape 1 : dossiers sans lien Drive exclus
         $crit = [];
         foreach (criteria() as $n => $c) {
             $crit[$n] = round_or_null($avg[$a['id']][$n] ?? null);
@@ -266,7 +351,7 @@ function person_view(): array
                 'avg' => average_scores(array_column(array_filter(ranking_members(true), fn ($m) => $m['role'] === 'consultatif'), 'id'))],
     ];
     $byMember = [];
-    foreach (db_all('SELECT member_id, architect_id, criterion, score FROM scores') as $r) {
+    foreach (db_all('SELECT member_id, architect_id, criterion, score FROM scores WHERE stage = ?', [stage()]) as $r) {
         $byMember[$r['member_id']][$r['architect_id']][(int) $r['criterion']] = (int) $r['score'];
     }
     foreach ($jury as $m) {
@@ -292,7 +377,9 @@ function person_view(): array
         }
     }
 
+    $top = top_n();
     return [
+        'top'      => $top,
         'criteria' => array_map(fn ($c) => $c['short'], criteria()),
         'columns' => array_map(fn ($key, $col) => ['key' => $key, 'label' => $col['label'], 'role' => $col['role'], 'group' => $col['group']],
                                array_keys($columns), $columns),
@@ -300,10 +387,10 @@ function person_view(): array
         'rows'    => array_map(fn ($a) => ['id' => (int) $a['id'], 'agency' => $a['agency'], 'city' => $a['city'],
                                            'cells' => $cells[$a['id']],
                                            'checks' => architect_check_levels($a),
-                                           // nombre de votants ayant ce dossier dans leur top 10
+                                           // nombre de votants ayant ce dossier dans leur top N
                                            'top10' => count(array_filter(array_keys($columns), fn ($key) => !$columns[$key]['group']
                                                && $columns[$key]['role'] === 'votant'
-                                               && ($cells[$a['id']][$key]['rank'] ?? 11) <= 10))], $architects),
+                                               && ($cells[$a['id']][$key]['rank'] ?? $top + 1) <= $top))], $architects),
     ];
 }
 
@@ -344,25 +431,14 @@ function ranking_table(bool $withConsultative = false): array
 function member_progress(int $memberId): array
 {
     $progress = [];
-    foreach (db_all('SELECT architect_id, criterion, score FROM scores WHERE member_id = ?', [$memberId]) as $r) {
+    foreach (db_all('SELECT architect_id, criterion, score FROM scores WHERE member_id = ? AND stage = ?', [$memberId, stage()]) as $r) {
         $progress[(int) $r['architect_id']][(int) $r['criterion']] = (int) $r['score'];
     }
     return $progress;
 }
 
-/** Vrai si le membre a noté tous les critères de tous les dossiers proposés au jury. */
+/** Vrai si le membre a noté tous ses critères sur tous les dossiers proposés au jury. */
 function has_completed_all(int $memberId): bool
 {
-    $architects = get_evaluable_architects();
-    if (!$architects) {
-        return false;
-    }
-    $progress = member_progress($memberId);
-    $nbCriteria = count(criteria());
-    foreach ($architects as $a) {
-        if (count($progress[(int) $a['id']] ?? []) < $nbCriteria) {
-            return false;
-        }
-    }
-    return true;
+    return in_array($memberId, completed_member_ids(), true);
 }

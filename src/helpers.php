@@ -5,9 +5,78 @@ function config(string $key)
     return $GLOBALS['config'][$key] ?? null;
 }
 
+/** Critères de l'étape en cours. */
 function criteria(): array
 {
-    return $GLOBALS['criteria'];
+    return $GLOBALS['criteria'][stage()];
+}
+
+/** Critères notés par un membre : à l'étape 2, le MOD note les critères « mod », les autres membres le reste. */
+function own_criteria(string $role): array
+{
+    if (stage() === 1) {
+        return criteria();
+    }
+    return array_filter(criteria(), fn ($c) => !empty($c['mod']) === ($role === 'mod'));
+}
+
+/** Critères notés par le MOD et repris pour tout le jury (étape 2 uniquement). */
+function mod_criteria(): array
+{
+    return stage() === 1 ? [] : array_filter(criteria(), fn ($c) => !empty($c['mod']));
+}
+
+/** Échelle de notation commune à toutes les étapes : note => [libellé, description]. */
+function score_scale(): array
+{
+    return [
+        0 => ['Absent', 'Le critère n’est pas traité'],
+        1 => ['Très insuffisant', 'Réponse formelle, sans contenu propre au site'],
+        2 => ['Insuffisant', 'Réponse partielle ou générique'],
+        3 => ['Acceptable', 'Répond, avec des insuffisances qui n’engagent pas le projet'],
+        4 => ['Satisfaisant', 'Répond pleinement, sans apport particulier'],
+        5 => ['Excellent', 'Répond pleinement et apporte une valeur pas formulée'],
+    ];
+}
+
+function setting(string $name): ?string
+{
+    return db_one('SELECT value FROM settings WHERE name = ?', [$name])['value'] ?? null;
+}
+
+function save_setting(string $name, string $value): void
+{
+    db_exec('INSERT INTO settings (name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)', [$name, $value]);
+}
+
+/** Étape de la consultation affichée (réglage, étape 2 par défaut). */
+function stage(): int
+{
+    return $GLOBALS['stage'] ??= setting('stage') === '1' ? 1 : 2;
+}
+
+/** Exécute $fn comme si l'étape $stage était sélectionnée. */
+function with_stage(int $stage, callable $fn)
+{
+    $previous = stage();
+    $GLOBALS['stage'] = $stage;
+    try {
+        return $fn();
+    } finally {
+        $GLOBALS['stage'] = $previous;
+    }
+}
+
+/** Lien du dossier à évaluer à l'étape en cours : candidature (étape 1) ou livrable (étape 2). */
+function architect_drive_url(array $architect): string
+{
+    return stage() === 1 ? $architect['drive_url'] : $architect['drive_url_stage2'];
+}
+
+/** Nombre de dossiers mis en évidence dans la vue par personne (« top N »). */
+function top_n(): int
+{
+    return stage() === 1 ? 10 : 3;
 }
 
 /**
@@ -133,7 +202,7 @@ function check_csrf(): void
 
 function role_label(string $role): string
 {
-    return ['votant' => 'Votant', 'consultatif' => 'Consultatif', 'aucun' => 'Hors jury'][$role] ?? $role;
+    return ['votant' => 'Votant', 'consultatif' => 'Consultatif', 'mod' => 'MOD', 'aucun' => 'Hors jury'][$role] ?? $role;
 }
 
 function fmt(?float $value, int $decimals = 1): string

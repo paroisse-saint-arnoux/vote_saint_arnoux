@@ -9,7 +9,7 @@
         <h1><?= e($architect['agency']) ?> <small class="muted">— tableau de bord</small></h1>
         <p class="muted">
             <?= e(trim($architect['referent'] . ' · ' . $architect['city'], ' ·')) ?>
-            <?php if ($architect['drive_url']): ?> · <a href="<?= e($architect['drive_url']) ?>" target="_blank" rel="noopener">Dossier de candidature</a><?php endif; ?>
+            <?php if (architect_drive_url($architect)): ?> · <a href="<?= e(architect_drive_url($architect)) ?>" target="_blank" rel="noopener"><?= stage() === 1 ? 'Dossier de candidature' : 'Livrable étape 2' ?></a><?php endif; ?>
         </p>
     </div>
 

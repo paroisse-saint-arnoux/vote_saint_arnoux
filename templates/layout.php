@@ -12,7 +12,7 @@
 <header class="topbar">
     <a class="brand" href="/">
         <span class="brand-mark">SA</span>
-        <span>Sélection des architectes<small>Jury — Sélection 1</small></span>
+        <span>Sélection des architectes<small>Jury — Étape <?= stage() ?></small></span>
     </a>
     <?php if ($me): ?>
         <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="topnav" aria-label="Menu">

@@ -11,6 +11,7 @@ $architectInput = function (array $src): array {
         'city'      => trim($src['city'] ?? ''),
         'website'   => normalize_url($src['website'] ?? ''),
         'drive_url' => normalize_url($src['drive_url'] ?? ''),
+        'drive_url_stage2' => normalize_url($src['drive_url_stage2'] ?? ''),
     ];
     foreach (architect_checks() as $col => $label) {
         $data[$col] = max(0, min(2, (int) ($src[$col] ?? 0)));
@@ -26,7 +27,7 @@ $memberInput = function (): array {
     return [
         'name'     => trim($_POST['name'] ?? ''),
         'email'    => mb_strtolower(trim($_POST['email'] ?? '')),
-        'role'     => in_array($role, ['votant', 'consultatif', 'aucun'], true) ? $role : 'votant',
+        'role'     => in_array($role, ['votant', 'consultatif', 'mod', 'aucun'], true) ? $role : 'votant',
         'is_admin' => empty($_POST['is_admin']) ? 0 : 1,
     ];
 };
@@ -37,6 +38,20 @@ if ($method === 'POST') {
 
     try {
         switch ($action) {
+            case 'stage_save':
+                $stage = (int) ($_POST['stage'] ?? 0);
+                if (!in_array($stage, [1, 2], true)) {
+                    throw new InvalidArgumentException('Étape inconnue.');
+                }
+                save_setting('stage', (string) $stage);
+                flash("Étape {$stage} sélectionnée : elle est maintenant affichée pour tous les membres.");
+                redirect('/reglages');
+
+            case 'stage2_reselect':
+                $n = count(stage2_architect_ids(true));
+                flash("Sélection recalculée d’après le classement de l’étape 1 : {$n} dossier(s) retenu(s).");
+                redirect('/reglages');
+
             case 'architect_save':
                 $data = $architectInput($_POST);
                 create_architect($data);
@@ -81,6 +96,10 @@ if ($method === 'POST') {
                 if ($id === (int) $me['id'] && !$data['is_admin']) {
                     throw new InvalidArgumentException('Vous ne pouvez pas retirer vos propres droits d’administration.');
                 }
+                $mod = get_mod();
+                if ($data['role'] === 'mod' && $mod && (int) $mod['id'] !== $id) {
+                    throw new InvalidArgumentException("{$mod['name']} a déjà le statut MOD : un seul membre peut l’avoir.");
+                }
                 if ($id) {
                     db_exec('UPDATE members SET name = ?, email = ?, role = ?, is_admin = ? WHERE id = ?', [...array_values($data), $id]);
                     flash('Membre « ' . $data['name'] . ' » enregistré.');
@@ -89,6 +108,7 @@ if ($method === 'POST') {
                     db_exec('INSERT INTO members (name, email, role, is_admin, position) VALUES (?, ?, ?, ?, ?)', [...array_values($data), $pos]);
                     flash('Membre « ' . $data['name'] . ' » ajouté.');
                 }
+                sync_mod_scores(); // le statut a pu changer : notes du MOD à reporter (ou à retirer)
                 redirect('/reglages#jury');
 
             case 'member_delete':
@@ -96,6 +116,7 @@ if ($method === 'POST') {
                     throw new InvalidArgumentException('Vous ne pouvez pas vous supprimer vous-même.');
                 }
                 db_exec('DELETE FROM members WHERE id = ?', [$id]);
+                sync_mod_scores();
                 flash('Membre supprimé, ainsi que ses notes.');
                 redirect('/reglages#jury');
 
@@ -122,9 +143,10 @@ if ($method === 'POST') {
                 if (trim($_POST['confirm'] ?? '') !== 'EFFACER') {
                     throw new InvalidArgumentException('Réinitialisation annulée : saisissez EFFACER pour confirmer.');
                 }
-                $n = db_exec('DELETE FROM scores');
-                error_log("Réinitialisation des réponses par {$me['name']} (#{$me['id']}) : {$n} note(s) supprimée(s)");
-                flash("Toutes les réponses ont été effacées ({$n} note(s) supprimée(s)).");
+                $n = db_exec('DELETE FROM scores WHERE stage = ?', [stage()]);
+                db_exec('DELETE FROM comments WHERE stage = ?', [stage()]);
+                error_log("Réinitialisation des réponses de l'étape " . stage() . " par {$me['name']} (#{$me['id']}) : {$n} note(s) supprimée(s)");
+                flash("Toutes les réponses de l’étape " . stage() . " ont été effacées ({$n} note(s) supprimée(s)).");
                 redirect('/reglages#danger');
 
             default:
@@ -138,8 +160,18 @@ if ($method === 'POST') {
 }
 
 $sessionsCount = array_column(db_all('SELECT member_id, COUNT(*) AS n FROM sessions GROUP BY member_id'), 'n', 'member_id');
-$scoresTotal = (int) db()->query('SELECT COUNT(*) FROM scores')->fetchColumn();
-$scoresCount = array_column(db_all('SELECT member_id, COUNT(DISTINCT architect_id) AS n FROM scores GROUP BY member_id'), 'n', 'member_id');
+$scoresTotal = (int) db_one('SELECT COUNT(*) AS n FROM scores WHERE stage = ?', [stage()])['n'];
+$scoresCount = array_column(db_all('SELECT member_id, COUNT(DISTINCT architect_id) AS n FROM scores WHERE stage = ? GROUP BY member_id', [stage()]), 'n', 'member_id');
+
+// Dossiers retenus pour l'étape 2, avec leur rang et leur score à l'étape 1
+$stage1 = with_stage(1, fn () => ranking());
+$stage1Ranks = rank_by(array_column($stage1, 'total', 'id'));
+$selected = [];
+foreach ($stage1 as $r) {
+    if (in_array($r['id'], stage2_architect_ids(), true)) {
+        $selected[] = $r + ['rank' => $stage1Ranks[$r['id']]];
+    }
+}
 
 render('settings', [
     'me'            => $me,
@@ -150,4 +182,5 @@ render('settings', [
     'sessionsCount' => $sessionsCount,
     'scoresCount'   => $scoresCount,
     'scoresTotal'   => $scoresTotal,
+    'selected'      => $selected,
 ]);

@@ -343,3 +343,39 @@ fieldset[disabled] .likert .opt { cursor: default; opacity: .75; }
 .btn.danger-solid:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 720px) { .danger-card { grid-template-columns: 1fr; } }
 
+
+/* ------------------------------------------------------------ Étape 2 */
+.role-mod, .tag.mod { background: #e8f0e6; color: #2f6b3c; }
+.tag.mod { margin-left: 8px; }
+.stage-banner { margin-top: 8px !important; background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 8px; }
+.criterion { scroll-margin-top: 140px; }
+.criterion.current { border-left-color: var(--gold); }
+.criterion.locked { opacity: .6; }
+.criterion.by-mod { background: #fbfcfa; }
+.lock-note { margin: 10px 0 0; font-size: .88rem; font-weight: 500; color: var(--muted); }
+.criterion.current .lock-note { color: #8a5a0b; }
+.scale-labels { display: grid; grid-template-columns: 1.6fr repeat(6, 1fr); column-gap: 6px; margin-top: -6px; font-size: .75rem; line-height: 1.25; color: var(--muted); text-align: center; }
+.scale-labels span:first-child { grid-column: 2; }
+.crit-points { margin: 12px 0 0; padding-left: 20px; font-size: .88rem; line-height: 1.5; color: #3d4250; }
+.crit-points li + li { margin-top: 4px; }
+.comment { margin-top: 12px; font-size: .9rem; }
+.comment textarea { font: inherit; font-weight: normal; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); width: 100%; resize: vertical; }
+.comment textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.mod-comment { margin-top: 12px; background: #f3f7f1; border: 1px solid #d5e4d0; border-radius: 8px; padding: 8px 12px; font-size: .88rem; }
+.mod-comment p { margin: 4px 0 0; }
+.stage-card { display: grid; grid-template-columns: auto 1fr; gap: 16px 32px; align-items: start; }
+.stage-choice { display: grid; gap: 8px; margin: 0; }
+.stage-option { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid var(--line); border-radius: 10px; cursor: pointer; }
+.stage-option.active { border-color: var(--accent); background: var(--accent-soft); }
+.stage-option input { width: 18px; height: 18px; accent-color: var(--accent); }
+.stage-option small { display: block; }
+.stage-selection ol { margin: 8px 0 10px; padding-left: 0; list-style: none; columns: 2; font-size: .9rem; }
+@media (max-width: 720px) {
+    .stage-card { grid-template-columns: 1fr; }
+    .stage-selection ol { columns: 1; }
+    .scale-labels { grid-template-columns: repeat(6, 1fr); font-size: .68rem; }
+    .scale-labels span:first-child { grid-column: 1; }
+}
+.crit-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.crit-nav .primary { margin-left: auto; }
+.criterion:not(.is-scored) .crit-nav, .criterion[disabled] .crit-nav { display: none; }
