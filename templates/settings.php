@@ -58,7 +58,7 @@
            « Hors jury » : accès en consultation (ex. administrateur).</p>
     </div>
     <div class="table-wrap">
-        <table class="grid form-grid">
+        <table class="grid form-grid" style="width: 100%;">
             <thead><tr><th>Nom</th><th>E-mail</th><th>Statut</th><th>Admin</th><th title="Sessions ouvertes / dossiers notés">Activité</th><th>Actions</th></tr></thead>
             <tbody>
             <?php foreach ($members as $m): $f = 'm' . $m['id']; ?>
@@ -108,7 +108,7 @@ $checkSelect = function (string $form, array $a = [], string $prefix = '') {
     $html = '';
     foreach (architect_checks() as $col => $label) {
         $name = $prefix === '' ? $col : "{$prefix}[{$col}]";
-        $html .= '<td><select form="' . $form . '" name="' . $name . '" class="check-select" title="' . e($label) . '">';
+        $html .= '<td class="check-cell"><select form="' . $form . '" name="' . $name . '" class="check-select" title="' . e($label) . '">';
         foreach (['—', '⚠️ Incohérences', '⛔ Gros souci'] as $level => $text) {
             $html .= '<option value="' . $level . '"' . ((int) ($a[$col] ?? 0) === $level ? ' selected' : '') . '>' . $text . '</option>';
         }
@@ -131,7 +131,7 @@ $checkSelect = function (string $form, array $a = [], string $prefix = '') {
     </div>
     <div class="table-wrap">
         <table class="grid form-grid">
-            <thead><tr><th>#</th><th>Agence</th><th>Référent</th><th>Ville</th><th>Site web</th><th>Dossier Google Drive</th><th>Livrable étape 2</th><?php foreach (architect_checks() as $label): ?><th><?= e($label) ?></th><?php endforeach; ?><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Agence</th><th>Référent</th><th>Ville</th><th>Site web</th><th>Dossier Google Drive</th><th>Livrable étape 2</th><?php foreach (architect_checks() as $label): ?><th class="check-cell" title="<?= e($label) ?>"><?= e($label) ?></th><?php endforeach; ?><th>Actions</th></tr></thead>
             <tbody>
             <?php // Toutes les lignes existantes appartiennent au même formulaire : « Enregistrer » les enregistre toutes
             foreach ($architects as $i => $a): $f = 'a' . $a['id']; $n = 'a[' . $a['id'] . ']'; ?>
