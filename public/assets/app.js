@@ -47,6 +47,49 @@
         field.addEventListener('change', () => field.form.submit());
     });
 
+    // Illustration affichée en grand au clic ; fermeture au clic ou avec Échap
+    document.querySelectorAll('.summary-illustration img').forEach((img) => {
+        img.addEventListener('click', () => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'lightbox';
+            dialog.innerHTML = '<img src="' + esc(img.src) + '" alt="' + esc(img.alt) + '">';
+            dialog.addEventListener('click', () => dialog.close());
+            dialog.addEventListener('close', () => dialog.remove());
+            document.body.appendChild(dialog);
+            dialog.showModal();
+        });
+    });
+
+    // Glisser-déposer d'une image sur la zone d'illustration (administrateurs)
+    document.querySelectorAll('.summary-illustration').forEach((zone) => {
+        const input = $('input[type=file]', zone);
+        if (!input || typeof DataTransfer === 'undefined') return;
+        const hasFiles = (ev) => [...ev.dataTransfer.types].includes('Files');
+        zone.addEventListener('dragover', (ev) => {
+            if (!hasFiles(ev)) return;
+            ev.preventDefault();
+            ev.dataTransfer.dropEffect = 'copy';
+            zone.classList.add('dragover');
+        });
+        zone.addEventListener('dragleave', (ev) => {
+            if (!zone.contains(ev.relatedTarget)) zone.classList.remove('dragover');
+        });
+        zone.addEventListener('drop', (ev) => {
+            if (!hasFiles(ev)) return;
+            ev.preventDefault();
+            zone.classList.remove('dragover');
+            const file = ev.dataTransfer.files[0];
+            if (!file || !['image/jpeg', 'image/png'].includes(file.type)) {
+                window.alert('Seules les images JPG et PNG sont acceptées.');
+                return;
+            }
+            const files = new DataTransfer();
+            files.items.add(file);
+            input.files = files.files;
+            input.form.submit();
+        });
+    });
+
     // ------------------------------------------------------------------ Fin de notation
 
     /** Message de félicitations + confettis quand le dernier critère du dernier dossier est noté. */

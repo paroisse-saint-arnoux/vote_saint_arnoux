@@ -97,9 +97,13 @@ function save_architect_illustration(int $architectId, ?array $upload): ?string
     if ($upload['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($upload['tmp_name'])) {
         return 'L’envoi du fichier a échoué.';
     }
-    $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png'][@getimagesize($upload['tmp_name'])['mime'] ?? ''] ?? null;
+    $info = @getimagesize($upload['tmp_name']);
+    $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png'][$info['mime'] ?? ''] ?? null;
     if (!$ext) {
         return 'Format non reconnu : seules les images JPG et PNG sont acceptées.';
+    }
+    if ($info[0] * $info[1] > 50_000_000) {
+        return 'Image trop grande (50 mégapixels au plus).';
     }
     $dir = APP_ROOT . '/uploads/illustrations';
     if (!is_dir($dir) && !mkdir($dir, 0775, true)) {
@@ -108,10 +112,50 @@ function save_architect_illustration(int $architectId, ?array $upload): ?string
     if ($previous = architect_illustration($architectId)) {
         unlink($previous);
     }
-    if (!move_uploaded_file($upload['tmp_name'], "$dir/$architectId.$ext")) {
+    if (!resize_image($upload['tmp_name'], "$dir/$architectId.$ext", $ext)
+        && !move_uploaded_file($upload['tmp_name'], "$dir/$architectId.$ext")) {
         throw new RuntimeException("Impossible d'enregistrer l'illustration du dossier $architectId");
     }
     return null;
+}
+
+/**
+ * Réduit l'image à 800 px au plus sur son grand côté (redressée selon l'orientation EXIF des photos)
+ * et l'enregistre dans $target. Renvoie false si GD n'est pas disponible : l'original est alors conservé.
+ */
+function resize_image(string $source, string $target, string $ext, int $maxSide = 800): bool
+{
+    if (!function_exists('imagecreatefromjpeg')) {
+        error_log('Extension GD absente : illustration enregistrée sans redimensionnement');
+        return false;
+    }
+    $img = $ext === 'jpg' ? imagecreatefromjpeg($source) : imagecreatefrompng($source);
+    if (!$img) {
+        throw new RuntimeException("Image illisible : $source");
+    }
+    if ($ext === 'jpg' && function_exists('exif_read_data')) {
+        $angle = [3 => 180, 6 => -90, 8 => 90][@exif_read_data($source)['Orientation'] ?? 1] ?? 0;
+        if ($angle) {
+            $img = imagerotate($img, $angle, 0);
+        }
+    }
+    $w = imagesx($img);
+    $h = imagesy($img);
+    $ratio = min(1, $maxSide / max($w, $h));
+    if ($ratio < 1) {
+        $resized = imagecreatetruecolor(max(1, (int) round($w * $ratio)), max(1, (int) round($h * $ratio)));
+        if ($ext === 'png') { // transparence conservée
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+        }
+        imagecopyresampled($resized, $img, 0, 0, 0, 0, imagesx($resized), imagesy($resized), $w, $h);
+        $img = $resized;
+    }
+    $ok = $ext === 'jpg' ? imagejpeg($img, $target, 82) : imagepng($img, $target, 9);
+    if (!$ok) {
+        throw new RuntimeException("Impossible d'enregistrer $target");
+    }
+    return true;
 }
 
 /** Nombre de dossiers mis en évidence dans la vue par personne (« top N »). */

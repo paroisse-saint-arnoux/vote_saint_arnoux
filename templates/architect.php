@@ -51,12 +51,14 @@ $hash = $unlocked ? '#c' . $unlocked['criterion'] : '';
     <div class="scoring-summary">
         <div class="summary-illustration<?= $illustration ? '' : ' empty' ?>">
             <?php if ($illustration): ?>
-                <img src="/architecte/<?= $architect['id'] ?>/illustration?v=<?= filemtime($illustration) ?>" alt="Illustration du projet <?= e($architect['agency']) ?>">
+                <img src="/architecte/<?= $architect['id'] ?>/illustration?v=<?= filemtime($illustration) ?>" alt="Illustration du projet <?= e($architect['agency']) ?>" title="Cliquer pour agrandir<?= $me['is_admin'] ? ' ; glisser-déposer une image pour la remplacer' : '' ?>">
             <?php endif; ?>
-            <?php if ($me['is_admin']): ?>
-                <label class="illustration-upload" title="Image JPG ou PNG">
+            <?php if ($me['is_admin'] && $illustration): // remplacement par glisser-déposer uniquement ?>
+                <input form="illustration-form" type="file" name="illustration" accept="image/jpeg,image/png" hidden>
+            <?php elseif ($me['is_admin']): ?>
+                <label class="illustration-upload" title="Image JPG ou PNG, à choisir ou à glisser-déposer ici">
                     <input form="illustration-form" type="file" name="illustration" accept="image/jpeg,image/png" data-autosubmit>
-                    <span><?= $illustration ? 'Remplacer' : '＋ Charger une illustration' ?></span>
+                    <span>＋ Charger une illustration<small>ou glisser-déposer une image</small></span>
                 </label>
             <?php elseif (!$illustration): ?>
                 <span class="muted">Pas d’illustration</span>
