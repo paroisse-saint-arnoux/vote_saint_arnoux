@@ -73,6 +73,47 @@ function architect_drive_url(array $architect): string
     return stage() === 1 ? $architect['drive_url'] : $architect['drive_url_stage2'];
 }
 
+/** Illustration d'un dossier (uploads/illustrations/{id}.jpg ou .png, hors racine web), ou null si absente. */
+function architect_illustration(int $architectId): ?string
+{
+    foreach (['jpg', 'png'] as $ext) {
+        $file = APP_ROOT . "/uploads/illustrations/$architectId.$ext";
+        if (is_file($file)) {
+            return $file;
+        }
+    }
+    return null;
+}
+
+/** Enregistre l'illustration envoyée ($_FILES) ; renvoie un message d'erreur, ou null si tout va bien. */
+function save_architect_illustration(int $architectId, ?array $upload): ?string
+{
+    if (!$upload || ($upload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return 'Aucun fichier reçu.';
+    }
+    if (in_array($upload['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) || $upload['size'] > 10 * 1024 * 1024) {
+        return 'Image trop lourde (10 Mo au plus).';
+    }
+    if ($upload['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($upload['tmp_name'])) {
+        return 'L’envoi du fichier a échoué.';
+    }
+    $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png'][@getimagesize($upload['tmp_name'])['mime'] ?? ''] ?? null;
+    if (!$ext) {
+        return 'Format non reconnu : seules les images JPG et PNG sont acceptées.';
+    }
+    $dir = APP_ROOT . '/uploads/illustrations';
+    if (!is_dir($dir) && !mkdir($dir, 0775, true)) {
+        throw new RuntimeException("Impossible de créer $dir");
+    }
+    if ($previous = architect_illustration($architectId)) {
+        unlink($previous);
+    }
+    if (!move_uploaded_file($upload['tmp_name'], "$dir/$architectId.$ext")) {
+        throw new RuntimeException("Impossible d'enregistrer l'illustration du dossier $architectId");
+    }
+    return null;
+}
+
 /** Nombre de dossiers mis en évidence dans la vue par personne (« top N »). */
 function top_n(): int
 {

@@ -275,15 +275,6 @@
         });
 
         computeTotal();
-
-        // Nom de l'agence dans la barre collante une fois l'en-tête du dossier sorti de l'écran
-        const header = $('.architect-header');
-        if (header && 'IntersectionObserver' in window) {
-            const summary = $('.scoring-summary');
-            new IntersectionObserver(([entry]) => {
-                summary.classList.toggle('stuck', !entry.isIntersecting && entry.boundingClientRect.top < 0);
-            }, { rootMargin: '-60px 0px 0px 0px' }).observe(header);
-        }
     }
 
     // ------------------------------------------------------------------ Classement

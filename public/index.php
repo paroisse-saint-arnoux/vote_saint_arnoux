@@ -122,6 +122,23 @@ if ($path === '/classement.xlsx') {
         [7, 34, 18, 12, ...array_fill(0, count(criteria()), 18), 20]);
 }
 
+// Illustration d'un dossier : affichée aux membres connectés, chargée ou remplacée par un administrateur
+if (preg_match('~^/architecte/(\d+)/illustration$~', $path, $m)) {
+    $architect = get_architect((int) $m[1]) ?? not_found();
+    if ($method === 'POST') {
+        require_admin();
+        $error = save_architect_illustration((int) $architect['id'], $_FILES['illustration'] ?? null);
+        flash($error ?? 'Illustration enregistrée.');
+        redirect('/architecte/' . $architect['id']);
+    }
+    $file = architect_illustration((int) $architect['id']) ?? not_found();
+    header('Content-Type: ' . (str_ends_with($file, '.png') ? 'image/png' : 'image/jpeg'));
+    header('Content-Length: ' . filesize($file));
+    header('Cache-Control: private, max-age=86400'); // l'URL change (?v=) quand l'image est remplacée
+    readfile($file);
+    exit;
+}
+
 if (preg_match('~^/architecte/(\d+)(/tableau)?$~', $path, $m)) {
     $architect = get_architect((int) $m[1]) ?? not_found();
     if (!empty($m[2])) {

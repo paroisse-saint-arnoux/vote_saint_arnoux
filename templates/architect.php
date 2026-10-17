@@ -42,8 +42,26 @@ $hash = $unlocked ? '#c' . $unlocked['criterion'] : '';
         Les critères <?= implode(' et ', array_keys(mod_criteria())) ?> sont notés par le MOD.</div>
 <?php endif; ?>
 
+<?php $illustration = architect_illustration((int) $architect['id']); ?>
+<?php if ($me['is_admin']): // hors du formulaire de notation (formulaires imbriqués interdits), le champ y est rattaché par form="" ?>
+    <form id="illustration-form" method="post" action="/architecte/<?= $architect['id'] ?>/illustration" enctype="multipart/form-data" hidden><?= csrf_field() ?></form>
+<?php endif; ?>
+
 <form class="scoring" id="scoring" data-architect="<?= $architect['id'] ?>" onsubmit="return false">
     <div class="scoring-summary">
+        <div class="summary-illustration<?= $illustration ? '' : ' empty' ?>">
+            <?php if ($illustration): ?>
+                <img src="/architecte/<?= $architect['id'] ?>/illustration?v=<?= filemtime($illustration) ?>" alt="Illustration du projet <?= e($architect['agency']) ?>">
+            <?php endif; ?>
+            <?php if ($me['is_admin']): ?>
+                <label class="illustration-upload" title="Image JPG ou PNG">
+                    <input form="illustration-form" type="file" name="illustration" accept="image/jpeg,image/png" data-autosubmit>
+                    <span><?= $illustration ? 'Remplacer' : '＋ Charger une illustration' ?></span>
+                </label>
+            <?php elseif (!$illustration): ?>
+                <span class="muted">Pas d’illustration</span>
+            <?php endif; ?>
+        </div>
         <div class="summary-who" aria-hidden="true">
             <strong><?= e($architect['agency']) ?></strong>
             <?php if ($architect['referent']): ?><span class="muted"><?= e($architect['referent']) ?></span><?php endif; ?>
