@@ -7,7 +7,8 @@ $unlocked = $canVote ? unlocked_criterion($me) : null;
 // Tri proposé une fois tous les dossiers notés ; les clés (ordre de notation) sont conservées pour la numérotation.
 $sorts = ['score' => 'Par score', 'notation' => 'Par ordre de notation', 'alpha' => 'Par ordre alphabétique'];
 $canSort = $canVote && has_completed_all((int) $me['id']);
-$sort = $canSort && isset($sorts[$_GET['tri'] ?? '']) ? $_GET['tri'] : 'score';
+// Tant que la notation est en cours, l'ordre reste celui de notation (il ne doit pas bouger au fil des notes).
+$sort = !$canSort ? 'notation' : (isset($sorts[$_GET['tri'] ?? '']) ? $_GET['tri'] : 'score');
 if ($sort === 'alpha') {
     $collator = class_exists(Collator::class) ? new Collator('fr_FR') : null;
     uasort($architects, fn ($x, $y) => $collator
