@@ -233,7 +233,8 @@ td.changed { animation: changed 1.6s ease-out; }
     background: var(--bg); display: grid; place-items: center; text-align: center; font-size: .82rem;
 }
 .summary-illustration.empty { border: 2px dashed var(--line); }
-.summary-illustration img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Cadre de taille fixe ; l'image y est réduite pour rester entière, jamais recadrée */
+.summary-illustration img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .illustration-upload { cursor: pointer; padding: 6px; color: var(--accent); font-weight: 600; line-height: 1.3; }
 .illustration-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .illustration-upload:hover, .illustration-upload:focus-within { text-decoration: underline; }
