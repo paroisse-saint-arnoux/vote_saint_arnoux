@@ -11,13 +11,13 @@ function criteria(): array
     return $GLOBALS['criteria'][stage()];
 }
 
-/** Critères notés par un membre : à l'étape 2, le MOD note les critères « mod », les autres membres le reste. */
+/** Critères notés par un membre : à l'étape 2, le MOD note tous les critères, les autres membres tous sauf les critères « mod ». */
 function own_criteria(string $role): array
 {
-    if (stage() === 1) {
+    if (stage() === 1 || $role === 'mod') {
         return criteria();
     }
-    return array_filter(criteria(), fn ($c) => !empty($c['mod']) === ($role === 'mod'));
+    return array_filter(criteria(), fn ($c) => empty($c['mod']));
 }
 
 /** Critères notés par le MOD et repris pour tout le jury (étape 2 uniquement). */

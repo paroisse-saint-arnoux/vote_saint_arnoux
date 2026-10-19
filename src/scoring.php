@@ -10,6 +10,7 @@
 // - Les notes sont propres à chaque étape (colonne stage) ; seule l'étape en cours est prise en compte.
 // - Étape 2 : les critères « mod » sont notés par le seul MOD ; ses notes sont recopiées
 //   pour chaque membre du jury (sync_mod_scores), si bien que tous les calculs les incluent.
+//   Le MOD note aussi les autres critères : il compte alors comme un membre consultatif.
 
 /** @param array<int, float|int|null> $scores critère => note */
 function weighted_total(array $scores): ?float
@@ -121,12 +122,12 @@ function save_comment(int $memberId, int $architectId, int $criterion, string $c
  */
 function unlocked_criterion(array $member): ?array
 {
-    if (stage() === 1 || $member['role'] === 'mod') {
+    if (stage() === 1) {
         return null;
     }
     $architects = get_evaluable_architects();
     $progress = member_progress((int) $member['id']);
-    foreach (own_criteria($member['role']) as $n => $c) {
+    foreach (array_diff_key(own_criteria($member['role']), mod_criteria()) as $n => $c) {
         $done = count(array_filter($architects, fn ($a) => isset($progress[$a['id']][$n])));
         if ($done < count($architects)) {
             return ['criterion' => $n, 'done' => $done, 'count' => count($architects)];
@@ -227,12 +228,12 @@ function completed_member_ids(): array
 }
 
 /**
- * Membres pris en compte dans le classement : votants (et consultatifs si demandé)
+ * Membres pris en compte dans le classement : votants (et consultatifs si demandé, MOD compris)
  * ayant noté tous les dossiers.
  */
 function ranking_members(bool $withConsultative = false): array
 {
-    $roles = $withConsultative ? ['votant', 'consultatif'] : ['votant'];
+    $roles = $withConsultative ? ['votant', 'consultatif', 'mod'] : ['votant'];
     $completed = completed_member_ids();
     return array_values(array_filter(get_jury(), fn ($m) => in_array($m['role'], $roles, true)
         && in_array((int) $m['id'], $completed, true)));
@@ -342,7 +343,7 @@ function person_view(): array
         'v' => ['label' => 'Jury votant', 'role' => 'votant', 'group' => true,
                 'avg' => average_scores(array_column(ranking_members(), 'id'))],
         'c' => ['label' => 'Jury consultatif', 'role' => 'consultatif', 'group' => true,
-                'avg' => average_scores(array_column(array_filter(ranking_members(true), fn ($m) => $m['role'] === 'consultatif'), 'id'))],
+                'avg' => average_scores(array_column(array_filter(ranking_members(true), fn ($m) => $m['role'] !== 'votant'), 'id'))],
     ];
     $byMember = [];
     foreach (db_all('SELECT member_id, architect_id, criterion, score FROM scores WHERE stage = ?', [stage()]) as $r) {

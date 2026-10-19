@@ -50,7 +50,7 @@ function require_admin(): array
     return $member;
 }
 
-/** Membres qui notent : votants et consultatifs, et à l'étape 2 le MOD (sur ses seuls critères). */
+/** Membres qui notent : votants et consultatifs, et à l'étape 2 le MOD. */
 function can_vote(array $member): bool
 {
     return in_array($member['role'], stage() === 1 ? ['votant', 'consultatif'] : ['votant', 'consultatif', 'mod'], true);

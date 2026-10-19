@@ -182,7 +182,7 @@ $scoringInput = function (array $input) use ($me, $canVote): array {
         json_response(['error' => 'Requête invalide'], 400);
     }
     if (!isset(own_criteria($me['role'])[$criterion])) {
-        json_response(['error' => $me['role'] === 'mod' ? 'Ce critère est noté par les membres du jury.' : 'Ce critère est noté par le MOD.'], 403);
+        json_response(['error' => 'Ce critère est noté par le MOD.'], 403);
     }
     return [$architectId, $criterion];
 };

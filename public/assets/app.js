@@ -402,7 +402,7 @@
             persons.tHead.innerHTML = '<tr>' + th('agency', 'Agence')
                 + th('top10', `<b>Top ${data.top} votants</b>`, 'num group')
                 + data.columns.map((c) => th(c.key, c.group ? `<b>${esc(c.label)}</b>`
-                    : esc(c.label) + (c.role === 'consultatif' ? '<small>consultatif</small>' : ''), 'num' + (c.group ? ' group' : ''))).join('')
+                    : esc(c.label) + ({ consultatif: '<small>consultatif</small>', mod: '<small>MOD</small>' }[c.role] || ''), 'num' + (c.group ? ' group' : ''))).join('')
                 + checkHeads(data.checks) + '</tr>';
             diffRender(persons, [...data.rows].sort(compare).map((r) => `<tr class="clickable${alertClass(r.checks)}" data-href="/architecte/${r.id}/tableau">`
                 + `<td><a href="/architecte/${r.id}/tableau">${esc(r.agency)}</a><small class="muted"> ${esc(r.city || '')}</small></td>`
@@ -463,7 +463,7 @@
 
             let html = summaryRow('Moyenne des votants <small>score officiel</small>', 'summary official', 'o', d.official, 2)
                 + summaryRow('Moyenne du jury <small>votants + consultatifs</small>', 'summary', 'a', d.all, 2)
-                + (d.rows.some((r) => r.role === 'consultatif') ? summaryRow('Moyenne des consultatifs', 'summary consult', 'c', d.consultative, 2) : '')
+                + (d.rows.some((r) => r.role !== 'votant') ? summaryRow('Moyenne des consultatifs', 'summary consult', 'c', d.consultative, 2) : '')
                 + '<tr class="summary stddev"><th>Écart type <small>votants + consultatifs</small></th>'
                 + cell('sd-t', d.stddev.total, 'num ' + sdClass(d.stddev.total, 20), fmt(d.stddev.total))
                 + keys.map((k) => cell(`sd-${k}`, d.stddev.criteria[k], 'num ' + sdClass(d.stddev.criteria[k]), fmt(d.stddev.criteria[k], 2))).join('')
@@ -474,7 +474,7 @@
                 const status = r.answered === 0 ? '<span class="tag wait">en attente</span>'
                     : (partial ? `<span class="tag partial">partiel ${r.answered}/${keys.length}</span>` : '');
                 return `<tr class="member role-${r.role} ${r.id === me ? 'me' : ''} ${r.answered === 0 ? 'empty' : ''}">`
-                    + `<th>${esc(r.name)} ${r.role === 'consultatif' ? '<span class="tag consult">consultatif</span>' : ''} ${status}</th>`
+                    + `<th>${esc(r.name)} ${{ consultatif: '<span class="tag consult">consultatif</span>', mod: '<span class="tag mod">MOD</span>' }[r.role] || ''} ${status}</th>`
                     + cell(`m${r.id}-t`, r.total, 'num total', fmt(r.total))
                     + keys.map((k) => {
                         const v = r.scores[k];

@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'Accueil';
-$own = own_criteria($me['role']);  // critères notés par ce membre (étape 2 : le MOD n'en note que deux)
+$own = own_criteria($me['role']);  // critères notés par ce membre (étape 2 : sans les critères du MOD, sauf pour lui)
 $nbCriteria = count($own);
 $unlocked = $canVote ? unlocked_criterion($me) : null;
 
@@ -33,9 +33,10 @@ if ($sort === 'alpha') {
             <p class="stage-banner">Critère en cours : <strong>critère <?= $unlocked['criterion'] ?> — <?= e($c['title']) ?></strong>,
                 <?= $unlocked['done'] ?> dossier(s) noté(s) sur <?= $unlocked['count'] ?>.
                 Conseil : notez chaque critère sur tous les dossiers avant de passer au suivant.</p>
-        <?php elseif ($canVote && $me['role'] === 'mod'): ?>
-            <p class="stage-banner">En tant que MOD, vous notez les critères <?= implode(' et ', array_keys($own)) ?> sur chaque dossier ;
-                vos notes sont reprises pour tous les membres du jury.</p>
+        <?php endif; ?>
+        <?php if ($canVote && $me['role'] === 'mod'): ?>
+            <p class="stage-banner">En tant que MOD, vous notez tous les critères : vos notes des critères <?= implode(' et ', array_keys(mod_criteria())) ?>
+                sont reprises pour tous les membres du jury ; les autres comptent comme celles d’un membre consultatif.</p>
         <?php endif; ?>
         <?php if ($canSort): ?>
             <form method="get" action="/" class="sort-form">
@@ -63,7 +64,7 @@ if ($sort === 'alpha') {
                 </a>
                 <?php if ($canVote): ?>
                     <span class="progress" title="<?= $n ?> critère(s) noté(s) sur <?= $nbCriteria ?>">
-                        <?php foreach ($me['role'] === 'mod' ? $own : criteria() as $k => $c): ?><i<?= isset($scores[$k]) ? ' class="s' . $scores[$k] . '"' : '' ?> title="Critère <?= $k ?> : <?= isset($scores[$k]) ? $scores[$k] . ' / 5' : 'non évalué' ?>"></i><?php endforeach; ?>
+                        <?php foreach (criteria() as $k => $c): ?><i<?= isset($scores[$k]) ? ' class="s' . $scores[$k] . '"' : '' ?> title="Critère <?= $k ?> : <?= isset($scores[$k]) ? $scores[$k] . ' / 5' : 'non évalué' ?>"></i><?php endforeach; ?>
                     </span>
                     <span class="my-score" title="Votre score pondéré sur 100"><?= $state === 'done' ? fmt(weighted_total($scores)) . '<small> / 100</small>' : '' ?></span>
                 <?php endif; ?>

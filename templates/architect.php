@@ -36,7 +36,8 @@ $hash = $unlocked ? '#c' . $unlocked['criterion'] : '';
 <?php if (!$canVote): ?>
     <div class="flash">Vous n’êtes pas membre du jury : la grille est affichée en lecture seule.</div>
 <?php elseif ($isMod): ?>
-    <div class="flash">En tant que MOD, vous notez les critères <?= implode(' et ', array_keys(mod_criteria())) ?> ; votre note est reprise pour tous les membres du jury.</div>
+    <div class="flash">En tant que MOD, vous notez tous les critères : vos notes des critères <?= implode(' et ', array_keys(mod_criteria())) ?> sont reprises pour tous les membres du jury ;
+        les autres comptent comme celles d’un membre consultatif.</div>
 <?php elseif (stage() === 2): ?>
     <div class="flash">Conseil : notez chaque critère sur tous les dossiers avant de passer au suivant ; le critère en cours est mis en avant.
         Les critères <?= implode(' et ', array_keys(mod_criteria())) ?> sont notés par le MOD.</div>
@@ -78,9 +79,6 @@ $hash = $unlocked ? '#c' . $unlocked['criterion'] : '';
     <?php foreach (criteria() as $n => $c):
         $current = $scores[$n] ?? null;
         $byMod = !empty($c['mod']);
-        if ($isMod && !$byMod && stage() === 2) {
-            continue; // le MOD ne voit que ses critères
-        }
         $own = $canVote && isset(own_criteria($me['role'])[$n]);
         $tracked = $own && !$byMod && stage() === 2; // étape 2 : critère en cours mis en avant
         $inProgress = $tracked && $unlocked && $n === $unlocked['criterion']; ?>

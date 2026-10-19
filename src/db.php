@@ -81,11 +81,12 @@ function get_architect(int $id): ?array
     return db_one('SELECT * FROM architects WHERE id = ?', [$id]);
 }
 
-/** Membres du jury (votants puis consultatifs), hors administrateurs non-jurés. */
+/** Membres du jury (votants, consultatifs puis, à l'étape 2, le MOD), hors administrateurs non-jurés. */
 function get_jury(): array
 {
-    return db_all("SELECT * FROM members WHERE role IN ('votant', 'consultatif')
-                   ORDER BY FIELD(role, 'votant', 'consultatif'), position, name");
+    $roles = stage() === 1 ? "'votant', 'consultatif'" : "'votant', 'consultatif', 'mod'";
+    return db_all("SELECT * FROM members WHERE role IN ($roles)
+                   ORDER BY FIELD(role, 'votant', 'consultatif', 'mod'), position, name");
 }
 
 /** Membre ayant le statut MOD (un seul possible). */
