@@ -369,10 +369,9 @@ fieldset[disabled] .likert .opt { cursor: default; opacity: .75; }
 .stage-banner { margin-top: 8px !important; background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 8px; }
 .criterion { scroll-margin-top: 200px; } /* sous la barre collante du dossier */
 .criterion.current { border-left-color: var(--gold); }
-.criterion.locked { opacity: .6; }
 .criterion.by-mod { background: #fbfcfa; }
-.lock-note { margin: 10px 0 0; font-size: .88rem; font-weight: 500; color: var(--muted); }
-.criterion.current .lock-note { color: #8a5a0b; }
+.current-note { margin: 10px 0 0; font-size: .88rem; font-weight: 500; color: var(--muted); }
+.criterion.current .current-note { color: #8a5a0b; }
 .scale-labels { display: grid; grid-template-columns: 1.6fr repeat(6, 1fr); column-gap: 6px; margin-top: -6px; font-size: .75rem; line-height: 1.25; color: var(--muted); text-align: center; }
 .scale-labels span:first-child { grid-column: 2; }
 .crit-points { margin: 12px 0 0; padding-left: 20px; font-size: .88rem; line-height: 1.5; color: #3d4250; }

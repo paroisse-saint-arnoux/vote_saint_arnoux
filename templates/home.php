@@ -32,7 +32,7 @@ if ($sort === 'alpha') {
         <?php if ($unlocked): $c = criteria()[$unlocked['criterion']]; ?>
             <p class="stage-banner">Critère en cours : <strong>critère <?= $unlocked['criterion'] ?> — <?= e($c['title']) ?></strong>,
                 <?= $unlocked['done'] ?> dossier(s) noté(s) sur <?= $unlocked['count'] ?>.
-                Chaque critère se note sur tous les dossiers avant de passer au suivant.</p>
+                Conseil : notez chaque critère sur tous les dossiers avant de passer au suivant.</p>
         <?php elseif ($canVote && $me['role'] === 'mod'): ?>
             <p class="stage-banner">En tant que MOD, vous notez les critères <?= implode(' et ', array_keys($own)) ?> sur chaque dossier ;
                 vos notes sont reprises pour tous les membres du jury.</p>

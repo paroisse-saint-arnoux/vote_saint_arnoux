@@ -38,7 +38,7 @@ $hash = $unlocked ? '#c' . $unlocked['criterion'] : '';
 <?php elseif ($isMod): ?>
     <div class="flash">En tant que MOD, vous notez les critères <?= implode(' et ', array_keys(mod_criteria())) ?> ; votre note est reprise pour tous les membres du jury.</div>
 <?php elseif (stage() === 2): ?>
-    <div class="flash">Les critères se notent dans l’ordre : chaque critère doit être noté sur tous les dossiers avant de passer au suivant.
+    <div class="flash">Conseil : notez chaque critère sur tous les dossiers avant de passer au suivant ; le critère en cours est mis en avant.
         Les critères <?= implode(' et ', array_keys(mod_criteria())) ?> sont notés par le MOD.</div>
 <?php endif; ?>
 
@@ -82,21 +82,18 @@ $hash = $unlocked ? '#c' . $unlocked['criterion'] : '';
             continue; // le MOD ne voit que ses critères
         }
         $own = $canVote && isset(own_criteria($me['role'])[$n]);
-        $lockable = $own && !$byMod && stage() === 2; // étape 2 : critères notés dans l'ordre
-        $locked = $lockable && !criterion_unlocked($unlocked, $n);
-        $inProgress = $lockable && $unlocked && $n === $unlocked['criterion']; ?>
-        <fieldset class="criterion<?= $byMod ? ' by-mod' : '' ?><?= $locked ? ' locked' : '' ?><?= $inProgress ? ' current' : '' ?>"
-                  id="c<?= $n ?>" data-criterion="<?= $n ?>"<?= $lockable ? ' data-lockable' : '' ?> <?= $own && !$locked ? '' : 'disabled' ?>>
+        $tracked = $own && !$byMod && stage() === 2; // étape 2 : critère en cours mis en avant
+        $inProgress = $tracked && $unlocked && $n === $unlocked['criterion']; ?>
+        <fieldset class="criterion<?= $byMod ? ' by-mod' : '' ?><?= $inProgress ? ' current' : '' ?>"
+                  id="c<?= $n ?>" data-criterion="<?= $n ?>"<?= $tracked ? ' data-tracked' : '' ?> <?= $own ? '' : 'disabled' ?>>
             <legend>
                 <span class="crit-num">Critère <?= $n ?></span>
                 <span class="crit-title"><?= e($c['title']) ?></span>
                 <span class="weight"><?= $c['weight'] ?> %</span>
                 <?php if ($byMod): ?><span class="tag mod">Noté par le MOD</span><?php endif; ?>
             </legend>
-            <?php if ($lockable): ?>
-                <p class="lock-note"<?= $locked || $inProgress ? '' : ' hidden' ?>><?= $locked
-                    ? "🔒 Notez d’abord le critère {$unlocked['criterion']} sur tous les dossiers ({$unlocked['done']} / {$unlocked['count']} notés)."
-                    : ($inProgress ? "Critère en cours : {$unlocked['done']} / {$unlocked['count']} dossiers notés." : '') ?></p>
+            <?php if ($tracked): ?>
+                <p class="current-note"<?= $inProgress ? '' : ' hidden' ?>><?= $inProgress ? "Critère en cours : {$unlocked['done']} / {$unlocked['count']} dossiers notés." : '' ?></p>
             <?php endif; ?>
             <?php if (!empty($c['note'])): ?>
                 <p class="crit-note">⚠️ <?= e($c['note']) ?></p>

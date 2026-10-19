@@ -114,9 +114,9 @@ function save_comment(int $memberId, int $architectId, int $criterion, string $c
 }
 
 /**
- * Étape 2 : les critères se notent dans l'ordre, chacun sur tous les dossiers avant de passer au suivant.
- * Renvoie le premier critère du membre qui n'est pas encore noté sur tous les dossiers (les suivants
- * sont verrouillés) et le nombre de dossiers déjà notés pour ce critère ; null si tout est accessible.
+ * Étape 2 : critère en cours, mis en avant pour inviter à noter chaque critère sur tous les dossiers
+ * avant de passer au suivant (sans l'imposer). Renvoie le premier critère du membre qui n'est pas encore
+ * noté sur tous les dossiers et le nombre de dossiers déjà notés pour ce critère ; null si tout est noté.
  * @return array{criterion:int, done:int, count:int}|null
  */
 function unlocked_criterion(array $member): ?array
@@ -133,12 +133,6 @@ function unlocked_criterion(array $member): ?array
         }
     }
     return null;
-}
-
-/** Vrai si le membre peut modifier sa note sur ce critère (étape 2 : critère déjà déverrouillé). */
-function criterion_unlocked(?array $unlocked, int $criterion): bool
-{
-    return $unlocked === null || $criterion <= $unlocked['criterion'];
 }
 
 /** Données du tableau de bord d'un architecte. */

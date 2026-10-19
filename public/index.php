@@ -184,10 +184,6 @@ $scoringInput = function (array $input) use ($me, $canVote): array {
     if (!isset(own_criteria($me['role'])[$criterion])) {
         json_response(['error' => $me['role'] === 'mod' ? 'Ce critère est noté par les membres du jury.' : 'Ce critère est noté par le MOD.'], 403);
     }
-    $unlocked = unlocked_criterion($me);
-    if (!criterion_unlocked($unlocked, $criterion)) {
-        json_response(['error' => "Notez d’abord le critère {$unlocked['criterion']} sur tous les dossiers."], 403);
-    }
     return [$architectId, $criterion];
 };
 

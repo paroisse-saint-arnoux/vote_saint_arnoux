@@ -255,18 +255,14 @@
             }
         };
 
-        // Étape 2 : critères notés dans l'ordre, chacun sur tous les dossiers avant de passer au suivant
-        const applyLocks = (u) => {
-            scoring.querySelectorAll('fieldset[data-lockable]').forEach((fs) => {
-                const n = Number(fs.dataset.criterion);
-                const locked = !!u && n > u.criterion, current = !!u && n === u.criterion;
-                fs.disabled = locked;
-                fs.classList.toggle('locked', locked);
+        // Étape 2 : critère en cours (le premier pas encore noté sur tous les dossiers) mis en avant
+        const applyCurrent = (u) => {
+            scoring.querySelectorAll('fieldset[data-tracked]').forEach((fs) => {
+                const current = !!u && Number(fs.dataset.criterion) === u.criterion;
                 fs.classList.toggle('current', current);
-                const note = fs.querySelector('.lock-note');
-                note.hidden = !locked && !current;
-                note.textContent = locked ? `🔒 Notez d’abord le critère ${u.criterion} sur tous les dossiers (${u.done} / ${u.count} notés).`
-                    : (current ? `Critère en cours : ${u.done} / ${u.count} dossiers notés.` : '');
+                const note = fs.querySelector('.current-note');
+                note.hidden = !current;
+                note.textContent = current ? `Critère en cours : ${u.done} / ${u.count} dossiers notés.` : '';
             });
             document.querySelectorAll('[data-hash-link]').forEach((a) => { a.hash = u ? 'c' + u.criterion : ''; });
         };
@@ -281,7 +277,7 @@
             fs.classList.remove('flash-ok');
             void fs.offsetWidth;
             fs.classList.add('flash-ok');
-            if (scoring.querySelector('fieldset[data-lockable]')) applyLocks(data.unlocked);
+            if (scoring.querySelector('fieldset[data-tracked]')) applyCurrent(data.unlocked);
             if (data.completed) celebrate();
         });
 
