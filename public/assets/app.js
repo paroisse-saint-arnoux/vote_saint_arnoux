@@ -288,8 +288,18 @@
             if (area) setTimeout(() => { if (!area.disabled) area.focus(); });
         });
 
+        // Commentaires : hauteur ajustée au texte (au moins les lignes prévues), y compris au chargement
+        const comments = scoring.querySelectorAll('textarea[name^="comment"]');
+        const fit = (area) => {
+            area.style.height = 'auto';
+            area.style.height = (area.scrollHeight + area.offsetHeight - area.clientHeight) + 'px';
+        };
+        comments.forEach(fit);
+        window.addEventListener('resize', () => comments.forEach(fit));
+
         // Commentaires : enregistrés après une pause dans la frappe, et en quittant le champ
-        scoring.querySelectorAll('textarea[name^="comment"]').forEach((area) => {
+        comments.forEach((area) => {
+            area.addEventListener('input', () => fit(area));
             let timer = null, saved = area.value;
             const flush = () => {
                 clearTimeout(timer);
