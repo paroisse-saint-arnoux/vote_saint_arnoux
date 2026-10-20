@@ -94,6 +94,15 @@ function sync_mod_scores(): void
     db()->commit();
 }
 
+/**
+ * Vrai si le membre a lui-même saisi au moins une note parmi $scores ([critère => note]) :
+ * les notes du MOD recopiées pour chaque juré (étape 2) ne comptent pas.
+ */
+function has_own_scores(array $scores, string $role): bool
+{
+    return (bool) array_intersect_key($scores, own_criteria($role));
+}
+
 /** Commentaires d'un membre pour un architecte : [critère => commentaire]. */
 function member_comments(int $memberId, int $architectId): array
 {
@@ -153,6 +162,9 @@ function architect_dashboard(int $architectId): array
     $totalsAll = [];  // scores totaux de chaque juré (pour l'écart type du total)
     foreach ($jury as $m) {
         $scores = $byMember[$m['id']] ?? [];
+        if (!has_own_scores($scores, $m['role'])) {
+            $scores = []; // juré n'ayant rien saisi : notes du MOD recopiées ignorées
+        }
         $total = weighted_total($scores);
         foreach ($scores as $n => $s) {
             $all[$n][] = $s;
@@ -350,11 +362,12 @@ function person_view(): array
         $byMember[$r['member_id']][$r['architect_id']][(int) $r['criterion']] = (int) $r['score'];
     }
     foreach ($jury as $m) {
-        if (empty($byMember[$m['id']])) {
-            continue; // membre n'ayant encore rien noté
+        $own = array_filter($byMember[$m['id']] ?? [], fn ($scores) => has_own_scores($scores, $m['role']));
+        if (!$own) {
+            continue; // membre n'ayant encore rien noté (hors notes du MOD recopiées)
         }
         $columns['m' . $m['id']] = ['label' => $m['name'], 'role' => $m['role'], 'group' => false,
-                                    'avg' => $byMember[$m['id']] ?? []];
+                                    'avg' => $own];
     }
 
     $cells = [];
